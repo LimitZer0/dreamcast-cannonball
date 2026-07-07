@@ -415,7 +415,8 @@ static int cannonball_main(int argc, char* argv[])
         return 1;
     }
 #ifdef __DREAMCAST__
-    SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_STRIDED_VIDEO");
+    // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_STRIDED_VIDEO");
+    SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_OPENGL_VIDEO");
     SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1");
     // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 #endif

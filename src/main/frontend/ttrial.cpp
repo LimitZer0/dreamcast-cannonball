@@ -84,7 +84,8 @@ int TTrial::tick()
                 }
                 else if (input.has_pressed(Input::RIGHT)|| oinputs.is_analog_r())
                 {
-                    if (++level_selected > sizeof(FERRARI_POS) - 1)
+                    // Fixed: sign-compare int8_t vs unsigned
+                    if (++level_selected > (int8_t)(sizeof(FERRARI_POS) - 1))
                         level_selected = 0;
                 }
                 else if (input.has_pressed(Input::START) || input.has_pressed(Input::ACCEL) || oinputs.is_analog_select())

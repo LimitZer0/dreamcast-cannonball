@@ -13,7 +13,7 @@ set(USE_BOOST 0)
 add_definitions(-DDREAMCAST)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
-option(DREAMCAST_SKIP_SPRITE_SHADOWS "Skip generated sprite shadow entries on Dreamcast" ON)
+option(DREAMCAST_SKIP_SPRITE_SHADOWS "Skip generated sprite shadow entries on Dreamcast" OFF)
 if(DREAMCAST_SKIP_SPRITE_SHADOWS)
     add_definitions(-DDREAMCAST_SKIP_SPRITE_SHADOWS)
 endif()

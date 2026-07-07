@@ -28,6 +28,10 @@
 #include "main.hpp"
 #include "config.hpp"
 #include "globals.hpp"
+
+#ifdef __DREAMCAST__
+#include "vmu.hpp"
+#endif
 #include "../utils.hpp"
 
 #include "engine/ohiscore.hpp"
@@ -389,10 +393,11 @@ void Config::load()
     ttrial.laps    = dc_xml_int(dc_xml, "time_trial.laps",    5);
     ttrial.traffic = dc_xml_int(dc_xml, "time_trial.traffic", 3);
     cont_traffic   = dc_xml_int(dc_xml, "continuous.traffic", 3);
+    vmu_load_config();
     DC_TRACE("cannonball: Config::load dreamcast parser done\n");
     return;
 #else
-    // Load XML file and put its contents in property tree. 
+    // Load XML file and put its contents in property tree.
     // No namespace qualification is needed, because of Koenig 
     // lookup on the second argument. If reading fails, exception
     // is thrown.
@@ -596,8 +601,7 @@ void Config::load()
 bool Config::save()
 {
 #ifdef __DREAMCAST__
-    DC_TRACE("cannonball: Config::save skipped\n");
-    return true;
+    return vmu_save_config();
 #else
     // Save stuff
     pt_config.put("video.mode",               video.mode);
@@ -694,8 +698,7 @@ void Config::load_scores(bool original_mode)
         filename = engine.jap ? data.file_cont_jap : data.file_cont;
 
 #ifdef __DREAMCAST__
-    DC_TRACE("cannonball: Config::load_scores skipped filename=%s\n", filename.c_str());
-    return;
+    vmu_load_scores();
 #else
     // Create empty property tree object
     ptree pt;
@@ -742,8 +745,7 @@ void Config::save_scores(bool original_mode)
         filename = engine.jap ? data.file_cont_jap : data.file_cont;
 
 #ifdef __DREAMCAST__
-    DC_TRACE("cannonball: Config::save_scores skipped filename=%s\n", filename.c_str());
-    return;
+    vmu_save_scores();
 #else
     // Create empty property tree object
     ptree pt;
@@ -838,6 +840,17 @@ void Config::save_tiletrial_scores()
 
 bool Config::clear_scores()
 {
+#ifdef __DREAMCAST__
+    const bool cleared = vmu_clear_scores();
+
+    data.cfg_file = "/cd/config.xml";
+    load();
+
+    // Restore the in-memory arcade table after clearing the VMU save.
+    ohiscore.init_def_scores();
+
+    return cleared;
+#else
     // Init Default Hiscores
     ohiscore.init_def_scores();
 
@@ -853,6 +866,7 @@ bool Config::clear_scores()
 
     // remove returns 0 on success
     return clear == 6;
+#endif
 }
 
 void Config::set_fps(int fps)

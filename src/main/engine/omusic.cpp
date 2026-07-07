@@ -233,7 +233,7 @@ void OMusic::tick()
     oentry *hand = &osprites.jump_table[entry_start + 4];
 
     // Determine Track Selection Logic
-    if (total_tracks < 3) tick_original(e, dial, hand);
+    if (total_tracks <= 3) tick_original(e, dial, hand);
     else tick_enhanced(e, dial, hand);
 
     osprites.do_spr_order_shadows(e);
@@ -298,9 +298,36 @@ void OMusic::tick_original(oentry* fm, oentry* dial, oentry* hand)
     // Note tiles to append to left side of text
     const uint32_t NOTE_TILES1 = 0x8A7A8A7B;
     const uint32_t NOTE_TILES2 = 0x8A7C8A7D;
+    int selected;
+
+    // On a spring-centred gamepad, latch the station when the stick or D-pad is
+    // moved. The arcade wheel path below keeps the original live steering zones.
+    if (input.gamepad)
+    {
+        if (input.has_pressed(Input::LEFT))
+        {
+            if (--cursor_pos < 0) cursor_pos = 2;
+        }
+        if (input.has_pressed(Input::RIGHT))
+        {
+            if (++cursor_pos > 2) cursor_pos = 0;
+        }
+        if (oinputs.steering_adjust + 0x80 <= 0x55)
+            cursor_pos = 0;
+        else if (oinputs.steering_adjust + 0x80 > 0xAA)
+            cursor_pos = 2;
+
+        selected = cursor_pos;
+    }
+    else if (oinputs.steering_adjust + 0x80 <= 0x55)
+        selected = 0;
+    else if (oinputs.steering_adjust + 0x80 <= 0xAA)
+        selected = 1;
+    else
+        selected = 2;
 
     // Steer Left
-    if (oinputs.steering_adjust + 0x80 <= 0x55)
+    if (selected == 0)
     {                
         set_hand(HAND_LEFT, fm, dial, hand);
         ohud.blit_text2(TEXT2_MAGICAL);
@@ -309,7 +336,7 @@ void OMusic::tick_original(oentry* fm, oentry* dial, oentry* hand)
         music_selected = 0;
     }
     // Centre
-    else if (oinputs.steering_adjust + 0x80 <= 0xAA)
+    else if (selected == 1)
     {
         set_hand(HAND_CENTRE, fm, dial, hand);
         ohud.blit_text2(TEXT2_BREEZE);
@@ -325,6 +352,27 @@ void OMusic::tick_original(oentry* fm, oentry* dial, oentry* hand)
         video.write_text32(0x1105C8, NOTE_TILES1);
         video.write_text32(0x110648, NOTE_TILES2);
         music_selected = 2;
+    }
+
+    if (input.gamepad)
+    {
+        const int steering = oinputs.steering_adjust + 0x80;
+
+        if (steering <= 0x55)
+        {
+            hand->x = 17;
+            hand->addr = outrun.adr.sprite_hand_left;
+        }
+        else if (steering <= 0xAA)
+        {
+            hand->x = 21;
+            hand->addr = outrun.adr.sprite_hand_centre;
+        }
+        else
+        {
+            hand->x = 21;
+            hand->addr = outrun.adr.sprite_hand_right;
+        }
     }
 }
 

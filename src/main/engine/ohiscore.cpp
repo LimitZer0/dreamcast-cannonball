@@ -488,7 +488,8 @@ void OHiScore::tick_minicars()
         minicar_entry* minicar = &minicars[i];
         
         // Minicar is on-screen
-        if (!minicar->dst_reached & BIT_0)
+        // Fixed: ! has higher precedence than &, was always evaluating to 0
+        if (!(minicar->dst_reached & BIT_0))
         {
             // Minicar has reached destination position (off-screen)
             if ((minicar->pos >> 8) >= 0x5A)

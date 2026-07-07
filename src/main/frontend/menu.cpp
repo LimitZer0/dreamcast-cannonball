@@ -74,7 +74,7 @@ void Menu::populate()
     menu_musictest.push_back(ENTRY_MUSIC2);
     menu_musictest.push_back(ENTRY_BACK);
 
-    menu_about.push_back("CANNONBALL 0.35 © CHRIS WHITE 2022");
+    menu_about.push_back("CANNONBALL 0.35 ï¿½ CHRIS WHITE 2022");
     menu_about.push_back("REASSEMBLER.BLOGSPOT.COM");
     menu_about.push_back(" ");
     menu_about.push_back("CANNONBALL IS FREE AND MAY NOT BE SOLD.");
@@ -802,7 +802,8 @@ void Menu::tick_menu()
                 osoundint.queue_sound(sound::FM_RESET);
 
                 // Last Wave
-                if (music_track == config.sound.music.size())
+                // Fixed: sign-compare int vs size_type
+                if (music_track == (int)config.sound.music.size())
                 {
                     cannonball::audio.clear_wav();
                     osoundint.queue_sound(sound::MUSIC_LASTWAVE);
@@ -813,7 +814,8 @@ void Menu::tick_menu()
             }
             else if (SELECTED(ENTRY_MUSIC2))
             {
-                if (++music_track > config.sound.music.size()) music_track = 0;
+                // Fixed: sign-compare int vs size_type
+                if (++music_track > (int)config.sound.music.size()) music_track = 0;
             }
             else if (SELECTED(ENTRY_BACK))
             {
@@ -952,7 +954,8 @@ void Menu::refresh_menu()
         }
         else if (menu_selected == &menu_musictest)
         {
-            if (SELECTED(ENTRY_MUSIC2))             set_menu_text(ENTRY_MUSIC2, music_track >= config.sound.music.size() ? ENTRY_MUSIC3 : config.sound.music.at(music_track).title);
+            // Fixed: sign-compare int vs size_type
+            if (SELECTED(ENTRY_MUSIC2))             set_menu_text(ENTRY_MUSIC2, music_track >= (int)config.sound.music.size() ? ENTRY_MUSIC3 : config.sound.music.at(music_track).title);
         }
     }
     cursor = cursor_backup;

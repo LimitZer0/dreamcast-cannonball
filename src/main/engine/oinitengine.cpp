@@ -82,7 +82,9 @@ void OInitEngine::init(int8_t level)
 
     // Road Renderer: Setup correct stage address 
     if (level)
+    {
         trackloader.init_path(oroad.stage_lookup_off);
+    }
 
 	opalette.setup_sky_palette();
 	opalette.setup_ground_color();

@@ -1016,7 +1016,7 @@ void YM2151::write_reg(int r, int v)
                 status &= ~1;
                 device->machine().scheduler().timer_set(attotime::zero, FUNC(irqAoff_callback), 0, chip);
 #else
-                int oldstate = status & 3;
+                // Fixed: removed unused oldstate variable
                 status &= ~1;
                 //if ((oldstate==1) && (irqhandler)) (*irqhandler)(device, 0);
 #endif
@@ -1028,7 +1028,7 @@ void YM2151::write_reg(int r, int v)
                 status &= ~2;
                 device->machine().scheduler().timer_set(attotime::zero, FUNC(irqBoff_callback), 0, chip);
 #else
-                int oldstate = status & 3;
+                // Fixed: removed unused oldstate variable
                 status &= ~2;
                 //if ((oldstate==2) && (irqhandler)) (*irqhandler)(device, 0);
 #endif
@@ -1131,7 +1131,8 @@ void YM2151::write_reg(int r, int v)
 
         case 0x08:    /* Key Code */
             v &= 0x7f;
-            if (v != op->kc)
+            // Fixed: sign-compare int vs uint32_t
+            if ((uint32_t)v != op->kc)
             {
                 uint32_t kc, kc_channel;
 
@@ -1168,7 +1169,8 @@ void YM2151::write_reg(int r, int v)
 
         case 0x10:    /* Key Fraction */
             v >>= 2;
-            if (v !=  (op->kc_i & 63))
+            // Fixed: sign-compare int vs unsigned long
+            if ((int)v !=  (int)(op->kc_i & 63))
             {
                 uint32_t kc_channel;
 

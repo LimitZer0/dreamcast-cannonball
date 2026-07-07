@@ -78,7 +78,9 @@ void Audio::start_audio()
 	    if (platform=="Linux")
         {
             if (SDL_InitSubSystem(SDL_INIT_AUDIO)!= 0)
+            {
                 std::cout << "Error initalizing audio subsystem: " << SDL_GetError() << std::endl;
+            }
 
 	        if (SDL_AudioInit("alsa") != 0) 
             {

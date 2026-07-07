@@ -11,6 +11,9 @@ RenderBase::RenderBase()
     orig_height = 0;
 }
 
+// Fixed: added virtual destructor for safe polymorphic delete
+RenderBase::~RenderBase() {}
+
 // Setup screen size
 bool RenderBase::sdl_screen_size()
 {

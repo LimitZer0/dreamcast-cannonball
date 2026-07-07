@@ -820,7 +820,8 @@ void OSound::play_pcm_index(uint8_t* chan, uint8_t cmd)
 // Source: 0x9E8
 void OSound::init_sound(uint8_t cmd, uint16_t src, uint16_t dst)
 {
-    uint16_t dst_backup = dst;
+    // Fixed: removed unused dst_backup variable
+    (void)dst;
 
     command_index = cmd - 0x81;
     
@@ -1202,7 +1203,8 @@ void OSound::ym_end_track(uint8_t* chan)
         return;
     }
     
-    *(chan -= 0x2C0); // = corresponding music channel
+    // Fixed: value computed but not used; assign to void to suppress warning
+    chan -= 0x2C0; // = corresponding music channel
 
     // Return if no sound playing on corresponding channel
     if (!(chan[ch::FLAGS] & BIT_7))

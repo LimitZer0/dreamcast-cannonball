@@ -104,7 +104,8 @@ int RomLoader::load_rom(const char* filename, const int offset, const int length
     // Check CRC on file
     const uint32_t checksum = crc32_bytes(buffer, (size_t) src.gcount());
 
-    if (expected_crc != checksum)
+    // Fixed: sign-compare between const int and const uint32_t
+    if (expected_crc != (int)checksum)
     {
         if (verbose) 
         std::cout << std::hex << 

@@ -602,7 +602,8 @@ void OHud::blit_text2(uint32_t src_addr)
     uint32_t dst_addr = 0x110000 + roms.rom0.read16(&src_addr); // Text RAM destination address
 
     uint16_t pal = roms.rom0.read8(&src_addr); 
-    pal = 0x80A0 | ((pal << 9) | (pal >> 7) & 1);
+    // Fixed: added parentheses so & 1 applies to (pal >> 7) not the whole expression
+    pal = 0x80A0 | ((pal << 9) | ((pal >> 7) & 1));
     // same as ror 7 and extending to word
     uint16_t counter = roms.rom0.read8(&src_addr); // Number of tiles to blit
 
@@ -729,7 +730,7 @@ void OHud::blit_text_new(uint16_t x, uint16_t y, const char* text, uint16_t pal)
         // Convert lowercase characters to uppercase
         if (c >= 'a' && c <= 'z')
             c -= 0x20;
-        else if (c == '©')
+        else if (c == 'ï¿½')
             c = 0x10;
         else if (c == '-')
             c = 0x2d;

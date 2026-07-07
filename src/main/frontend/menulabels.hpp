@@ -61,8 +61,9 @@ const static char* ENTRY_SCANLINES = "SCANLINES ";
 
 // Sound Menu
 const static char* ENTRY_MUTE = "SOUND ";
-const static char* ENTRY_BGM = "BGM VOL ";
-const static char* ENTRY_SFX = "SFX VOL ";
+// Fixed: removed unused ENTRY_BGM and ENTRY_SFX labels
+// const static char* ENTRY_BGM = "BGM VOL ";
+// const static char* ENTRY_SFX = "SFX VOL ";
 const static char* ENTRY_ADVERTISE = "ATTRACT SOUND ";
 const static char* ENTRY_PREVIEWSND = "PREVIEW MUSIC ";
 const static char* ENTRY_FIXSAMPLES = "FIX SAMPLES ";
