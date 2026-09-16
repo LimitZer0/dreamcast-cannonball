@@ -54,7 +54,16 @@ void OInitEngine::init(int8_t level)
 
     ingame_engine          = false;
     ingame_counter         = 0;
-    ostats.cur_stage       = 0;
+    // Stage groups are contiguous 8-byte bands (0x00-07 = stage 1,
+    // 0x08-0F = stage 2, ... 0x20-27 = stage 5) and init_split_next_level()
+    // advances both cur_stage and stage_lookup_off in lockstep (++cur_stage,
+    // stage_lookup_off += 8) -- so a non-default DREAMCAST_START_LEVEL byte
+    // must derive the matching cur_stage the same way, or the stage-number
+    // HUD/route-map/ending logic disagrees with which stage is actually
+    // loaded (hardware-confirmed: cur_stage stuck at 0 while stage_lookup_off
+    // pointed at stage 4 caused a full mismatched 5-stage runthrough that
+    // hung at the hiscore screen instead of the intended single-stage test).
+    ostats.cur_stage       = level ? (level >> 3) : 0;
     oroad.stage_lookup_off = level ? level : 0;
     rd_split_state         = SPLIT_NONE;
     road_type              = ROAD_NOCHANGE;

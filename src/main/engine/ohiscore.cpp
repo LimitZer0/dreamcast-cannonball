@@ -228,18 +228,27 @@ void OHiScore::check_name_entry()
     }
     else
     {
+#ifdef DREAMCAST_SKIP_HISCORE_ENTRY
+        // Unattended AI captures (DREAMCAST_FORCE_AI/DREAMCAST_SKIP_CREDITS)
+        // have no controller present to enter initials -- the screen would
+        // otherwise sit here forever waiting for input. Skip straight to
+        // STATE_DONE with whatever initials are already in the entry.
+        state = STATE_DONE;
+        config.save_scores(outrun.cannonball_mode == Outrun::MODE_ORIGINAL);
+        return;
+#endif
         // Get text ram address of score to blit
         uint32_t score_adr = get_score_adr();
         // Blit Alphabet. Highlight selected letter red.
         blit_alphabet();
         // Flash current initial that is being entered
-        flash_entry(score_adr);   
+        flash_entry(score_adr);
         // Draw big red countdown timer
         const uint16_t BIG_RED_FONT = 0x8080;
         ohud.draw_timer2(ostats.time_counter, 0x1101EC, BIG_RED_FONT);
         // Input from controls
         do_input(score_adr);
-        
+
         // Save new score info
         if (state == STATE_DONE)
             config.save_scores(outrun.cannonball_mode == Outrun::MODE_ORIGINAL);

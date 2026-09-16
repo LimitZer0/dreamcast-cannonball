@@ -208,6 +208,7 @@ static void tick()
     {
         static bool dc_stage_baseline_set = false;
         static int8_t dc_stage_baseline = 0;
+        static int dc_advances_seen = 0;
         if (!dc_stage_baseline_set)
         {
             dc_stage_baseline = ostats.cur_stage;
@@ -215,10 +216,36 @@ static void tick()
         }
         else if (ostats.cur_stage != dc_stage_baseline)
         {
-            DC_TRACE("cannonball: stage advanced %d -> %d, stage_lookup_off=%d, calling arch_exit()\n",
-                     dc_stage_baseline, ostats.cur_stage, oroad.stage_lookup_off);
+            dc_advances_seen++;
+            DC_TRACE("cannonball: stage advanced %d -> %d, stage_lookup_off=%d, advance %d/%d\n",
+                     dc_stage_baseline, ostats.cur_stage, oroad.stage_lookup_off,
+                     dc_advances_seen, DREAMCAST_EXIT_AFTER_N_ADVANCES);
+            dc_stage_baseline = ostats.cur_stage;
+            if (dc_advances_seen >= DREAMCAST_EXIT_AFTER_N_ADVANCES)
+            {
+                DC_TRACE("cannonball: target advance count reached, calling arch_exit()\n");
+                arch_exit();
+            }
+        }
+    }
+#endif
+#ifdef DREAMCAST_EXIT_ON_GAME_COMPLETE
+    // Stage 5's ending never touches ostats.cur_stage (it goes through
+    // GS_INIT_BONUS/GS_BONUS/hiscore instead of another road split), so
+    // DREAMCAST_EXIT_ON_STAGE_ADVANCE can't catch it. ostats.game_completed
+    // is set the instant the bonus sequence starts and only clears back to
+    // 0 in the *next* OInitEngine::init() (i.e. once the whole bonus +
+    // hiscore cycle has finished and GS_REINIT/GS_INIT has run) -- so a
+    // 1 -> 0 edge on that flag means a full ending cycle just completed.
+    if (state == STATE_GAME)
+    {
+        static uint8_t dc_prev_game_completed = 0;
+        if (dc_prev_game_completed && !ostats.game_completed)
+        {
+            DC_TRACE("cannonball: ending cycle completed, calling arch_exit()\n");
             arch_exit();
         }
+        dc_prev_game_completed = ostats.game_completed;
     }
 #endif
 #endif

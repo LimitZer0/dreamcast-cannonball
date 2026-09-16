@@ -62,6 +62,25 @@ if(DREAMCAST_EXIT_ON_STAGE_ADVANCE)
     add_definitions(-DDREAMCAST_EXIT_ON_STAGE_ADVANCE)
 endif()
 
+# How many cur_stage advances to let pass before DREAMCAST_EXIT_ON_STAGE_ADVANCE
+# actually exits -- 1 (default) stops at the first fork, 2 lets stage 1's
+# fork go by and stops at stage 2's, etc.
+set(DREAMCAST_EXIT_AFTER_N_ADVANCES 1 CACHE STRING "Number of cur_stage advances to let pass before DREAMCAST_EXIT_ON_STAGE_ADVANCE exits")
+add_definitions(-DDREAMCAST_EXIT_AFTER_N_ADVANCES=${DREAMCAST_EXIT_AFTER_N_ADVANCES})
+
+# Stage 5's ending (GS_INIT_BONUS -> GS_BONUS -> hiscore) never touches
+# ostats.cur_stage, so DREAMCAST_EXIT_ON_STAGE_ADVANCE can never fire for it
+# -- a start-level-5 capture would otherwise loop forever through
+# GS_REINIT/GS_INIT with no exit condition. This exits the instant a full
+# ending cycle (bonus animation + hiscore screen) completes, detected as
+# ostats.game_completed clearing back to 0 in the next OInitEngine::init()
+# (mirrors DREAMCAST_SKIP_HISCORE_ENTRY's use case: unattended AI captures
+# with no controller to trigger a manual exit).
+option(DREAMCAST_EXIT_ON_GAME_COMPLETE "Auto-exit via arch_exit() once a full stage-5 ending cycle (bonus + hiscore) completes and the game reinitializes" OFF)
+if(DREAMCAST_EXIT_ON_GAME_COMPLETE)
+    add_definitions(-DDREAMCAST_EXIT_ON_GAME_COMPLETE)
+endif()
+
 # GS_ATTRACT has a bounded demo timer (decrement_timers() in outrun.cpp)
 # that resets the whole demo back to stage 1 regardless of whether a fork
 # was reached -- confirmed on hardware to fire before a full stage-1
@@ -80,6 +99,16 @@ endif()
 option(DREAMCAST_SKIP_CREDITS "Bypass the arcade credit/Start-button gate so boot reaches real gameplay (GS_INGAME) without physical input" OFF)
 if(DREAMCAST_SKIP_CREDITS)
     add_definitions(-DDREAMCAST_SKIP_CREDITS)
+endif()
+
+# Hiscore name-entry (OHiScore::check_name_entry()) normally waits
+# indefinitely for controller input to type initials -- fine for a human
+# player, but it stalls an unattended DREAMCAST_FORCE_AI/DREAMCAST_SKIP_CREDITS
+# capture forever with no controller present. This auto-confirms the
+# screen immediately instead of waiting for input.
+option(DREAMCAST_SKIP_HISCORE_ENTRY "Auto-confirm the hiscore initials-entry screen instead of waiting for controller input, for unattended AI captures" OFF)
+if(DREAMCAST_SKIP_HISCORE_ENTRY)
+    add_definitions(-DDREAMCAST_SKIP_HISCORE_ENTRY)
 endif()
 
 # Platform Specific Libraries

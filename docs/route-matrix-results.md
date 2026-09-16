@@ -1,5 +1,55 @@
 # Route Matrix Results
 
+## Full continuous route capture, 2026-09-16 — A→A→A→A→A confirmed end-to-end
+
+Everything below this section is the older isolated-byte matrix: short
+(~60s), fresh-cold-boot samples at one `DREAMCAST_START_LEVEL` byte each,
+useful as a coarse baseline but not a real playthrough. This section is
+different: one continuous hardware run, `FORCE_AI`+`SKIP_CREDITS` driving
+real credited gameplay from stage 1 through the actual ending, with fork
+identity confirmed both from the log and by direct visual observation.
+
+**Method:** `DREAMCAST_FAST_SPRITES=ON`, `DREAMCAST_SPRITE_ZOOM_PROFILE=ON`,
+`DREAMCAST_AUTOSTART=ON`, `DREAMCAST_FORCE_AI=ON`, `DREAMCAST_SKIP_CREDITS=ON`,
+`DREAMCAST_EXIT_ON_STAGE_ADVANCE=ON` with `DREAMCAST_EXIT_AFTER_N_ADVANCES`
+raised from 1 to 4 across successive runs to let earlier forks pass and
+capture one further stage each time. Raw logs:
+`logs/route-matrix/forceai-skipcredits-retry.log` (1 advance),
+`forceai-skipcredits-stage2fork.log` (2), `-stage3fork.log` (3),
+`-stage4fork.log` (4).
+
+**Confirmed fork chain** (`stage_lookup_off` at each `cur_stage` advance):
+
+| Advance | `stage_lookup_off` | Visually observed direction |
+|---|---|---|
+| 0->1 | 9 (`0x09`) | left |
+| 1->2 | 18 (`0x12`) | left |
+| 2->3 | 26 (`0x1A`) | right |
+| 3->4 | 35 (`0x23`) | left |
+| 4->0 (finish) | 0 | -- |
+
+This is a real, human-and-log-verified **L, L, R, L** route through all 5
+stages, not an assumed A-E label — the first route in this matrix with
+confirmed (not assumed) fork identity end-to-end. Notably `0x1A` and `0x23`
+are the two bytes that crashed hardware in the isolated-byte matrix below
+(`Data address error`); both passed clean here as part of a continuous
+route, confirming those crashes were the vsync bug fixed earlier this
+session, not anything specific to that stage content.
+
+**Full unattended ending capture:** `logs/route-matrix/exit-on-game-complete.log`
+(`DREAMCAST_START_LEVEL=0x23`, `DREAMCAST_SKIP_HISCORE_ENTRY=ON`,
+`DREAMCAST_EXIT_ON_GAME_COMPLETE=ON`) reached stage 5's real ending, saved
+a hiscore (`[VMU] Saved 20 score entries to CANNON`), and exited itself
+cleanly (`Program returned 0`) with no controller input and no `/pc/exit_now`
+sentinel needed. Getting here required fixing a real engine bug: see
+`NEXT_TASK.md` for the `ostats.cur_stage`/`stage_lookup_off` mismatch fix in
+`oinitengine.cpp` and the new `DREAMCAST_SKIP_HISCORE_ENTRY`/
+`DREAMCAST_EXIT_ON_GAME_COMPLETE` options. Two runs of this exact
+combination produced byte-identical score/time, confirming
+`DREAMCAST_FORCE_AI` captures are deterministic run-to-run given the same
+build/settings (`outils::reset_random_seed()` reseeds identically every
+`Outrun::boot()`).
+
 ## Stage-1 baseline / A→A capture
 
 ## Stage-4 candidate (`DREAMCAST_START_LEVEL=0x1A`)

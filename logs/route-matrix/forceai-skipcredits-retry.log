@@ -1,0 +1,216 @@
+Connecting to 192.168.0.128...
+dc-load-ip 3.0.1 using Broadband Adapter (HIT-0400)
+Console enabled
+Upload <cannonball.elf>
+File format is ELF, start address is 0x8c010000
+Section .text, lma 0x8c010000, size 1722040
+Section .init, lma 0x8c1b6000, size 54
+Section .fini, lma 0x8c1b6038, size 42
+Section .rodata, lma 0x8c1b6080, size 177524
+Section .eh_frame, lma 0x8c1e15f4, size 97692
+Section .gcc_except_table, lma 0x8c1f9390, size 11265
+Section .ctors, lma 0x8c1fc014, size 52
+Section .dtors, lma 0x8c1fc048, size 8
+Section .data, lma 0x8c1fc050, size 12952
+Section .got, lma 0x8c1ff2e8, size 12
+Transferred 2021641 bytes at 4799444 bytes / sec
+Executing at 0x8c010000
+Sending execute command (0xac010000, console=1, cdfsredir=0)...argv(1, argv0="cannonball.elf")...executing
+
+--
+KallistiOS v2.3.0 [dreamcast/pristine]
+  Git revision: fcfa7d86
+  Mon Sep 14 01:18:49 PM MST 2026
+  gpf@gpf-B550-Phantom-Gaming-4-ac:/opt/toolchains/dc/kos
+  sh-elf-gcc (GCC) 17.0.0 20260703 (experimental)
+maple: active drivers:
+    Dreameye (Camera): Camera
+    Sound Input Peripheral: Microphone
+    PuruPuru (Vibration) Pack: JumpPack
+    VMU Driver: Clock, LCD, MemoryCard
+    Mouse Driver: Mouse
+    Keyboard Driver: Keyboard
+    Controller Driver: Controller
+    Lightgun: LightGun
+vid_set_mode: 640x480 VGA with 1 framebuffers.
+dc-load console support enabled
+maple: attached devices:
+  A0: Dreamcast Controller           (01000000: Controller)
+  A1: Visual Memory                  (0e000000: Clock, LCD, MemoryCard)
+  D0: Keyboard                       (40000000: Keyboard)
+
+cannonball: Config::load cfg=/cd/config.xml
+fs_iso9660: disc change detected
+cannonball: Config::load failed to read /cd/config.xml
+cannonball: Config::load using /pc/config.xml fallback
+[VMU] Open file /vmu/a1/CANNON
+[VMU] Open file /vmu/a1/CANNON: OK
+[VMU] Loaded settings from CANNON (624 bytes)
+cannonball: Config::load dreamcast parser done
+INFO: SDL2 Dreamcast video initialized: 640x480
+Initializing joysticks...
+No rumble device at port 0
+Joystick found at port 0
+No joystick at port 1
+No joystick at port 2
+No joystick at port 3
+No joystick at port 4
+No joystick at port 5
+No joystick at port 6
+No joystick at port 7
+Number of joysticks initialized: 1
+INFO: Initializing dreamcast haptic devices...
+INFO: Opening audio device
+INFO: Buffer size: 4096
+INFO: 16-bit PCM audio format enabled
+INFO: Dreamcast audio driver initialized
+cannonball: audio desired freq=11025 fmt=0x8010 channels=2 samples=1024 obtained freq=11025 fmt=0x8010 channels=2 samples=1024
+cannonball: Dreamcast render layout src=320x224 screen=320x240 dst=0,8 320x224 mode=2
+INFO: Display modes for Dreamcast retrieved successfully.
+INFO: DREAMCAST_CreateWindow: window 640x480 created for native PVR renderer
+INFO: Double Buffer video enabled
+vid_set_mode: 320x240 VGA with 1 framebuffers.
+INFO: Dreamcast PVR
+cannonball: renderer=0x8c8adc48 name=Dreamcast PVR flags=0xe
+cannonball: creating texture 320x240 surface=320x240 src=320x224 dst=320x224
+cannonball: created texture=0x8c8adea8 actual=320x240 format=SDL_PIXELFORMAT_RGB565 access=1 renderer=0x8c8adc48
+cannonball: Dreamcast texture framebuffer surface=320x240 pitch=640 format=SDL_PIXELFORMAT_RGB565
+cannonball: state -1 -> 1 frame=1
+cannonball: state 1 -> 2 frame=2
+cannonball: state 2 -> 3 frame=4
+[VMU] Open file /vmu/a1/CANNON
+[VMU] Open file /vmu/a1/CANNON: OK
+[VMU] Loaded 20 score entries from CANNON (624 bytes)
+cannonball: state 3 -> 4 frame=5
+cannonball: perf fps=15 avg_ms total=64 tick=13 prep=31 render=11 audio=8 state=4 target_fps=30
+cannonball: perf fps=18 avg_ms total=53 tick=1 prep=34 render=9 audio=7 state=4 target_fps=30
+cannonball: drawperf fps=17 draw=7
+cannonball: renderperf fps=17 update=3
+cannonball: perf fps=19 avg_ms total=52 tick=1 prep=34 render=9 audio=7 state=4 target_fps=30
+cannonball: perf fps=18 avg_ms total=53 tick=1 prep=33 render=9 audio=8 state=4 target_fps=30
+cannonball: drawperf fps=18 draw=6
+cannonball: renderperf fps=18 update=3
+cannonball: perf fps=18 avg_ms total=54 tick=1 prep=34 render=9 audio=9 state=4 target_fps=30
+cannonball: perf fps=25 avg_ms total=39 tick=1 prep=20 render=9 audio=7 state=4 target_fps=30
+cannonball: perf fps=29 avg_ms total=33 tick=1 prep=13 render=9 audio=8 state=4 target_fps=30
+cannonball: drawperf fps=27 draw=6
+cannonball: renderperf fps=27 update=3
+cannonball: perf fps=30 avg_ms total=32 tick=1 prep=13 render=9 audio=8 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=34 tick=1 prep=14 render=9 audio=8 state=4 target_fps=30
+cannonball: drawperf fps=30 draw=6
+cannonball: renderperf fps=30 update=3
+cannonball: perf fps=30 avg_ms total=33 tick=1 prep=14 render=9 audio=7 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=35 tick=1 prep=15 render=9 audio=9 state=4 target_fps=30
+cannonball: perf fps=27 avg_ms total=36 tick=1 prep=15 render=9 audio=10 state=4 target_fps=30
+cannonball: drawperf fps=27 draw=6
+cannonball: renderperf fps=27 update=3
+cannonball: perf fps=26 avg_ms total=37 tick=1 prep=16 render=10 audio=9 state=4 target_fps=30
+cannonball: perf fps=27 avg_ms total=36 tick=1 prep=14 render=9 audio=10 state=4 target_fps=30
+cannonball: roadperf fps=24 control=1 rows_drawn=72 rows_skipped=151
+cannonball: spriteperf fps=24 sprites=53 shadow=48 fullclip=53 rows=1522 rows_1x=104
+cannonball: spritezoom cumulative rows=1131025
+cannonball: spritezoom rank=1 hzoom=0x200 rows=77858 cumulative=77858
+cannonball: spritezoom rank=2 hzoom=0x329 rows=70307 cumulative=70307
+cannonball: spritezoom rank=3 hzoom=0x230 rows=37791 cumulative=37791
+cannonball: spritezoom rank=4 hzoom=0x18f rows=37025 cumulative=37025
+cannonball: spritezoom rank=5 hzoom=0x2aa rows=36185 cumulative=36185
+cannonball: spritezoom rank=6 hzoom=0x1af rows=35600 cumulative=35600
+cannonball: spritezoom rank=7 hzoom=0x1d4 rows=31907 cumulative=31907
+cannonball: spritezoom rank=8 hzoom=0x26a rows=31857 cumulative=31857
+cannonball: spritezoom rank=9 hzoom=0x288 rows=31550 cumulative=31550
+cannonball: spritezoom rank=10 hzoom=0x3f0 rows=27969 cumulative=27969
+cannonball: spritezoom rank=11 hzoom=0x2f1 rows=25220 cumulative=25220
+cannonball: spritezoom rank=12 hzoom=0x2a3 rows=24379 cumulative=24379
+cannonball: spritezoom cumulative-rank=1 hzoom=0x200 rows=77858
+cannonball: spritezoom cumulative-rank=2 hzoom=0x329 rows=70307
+cannonball: spritezoom cumulative-rank=3 hzoom=0x230 rows=37791
+cannonball: spritezoom cumulative-rank=4 hzoom=0x18f rows=37025
+cannonball: spritezoom cumulative-rank=5 hzoom=0x2aa rows=36185
+cannonball: spritezoom cumulative-rank=6 hzoom=0x1af rows=35600
+cannonball: spritezoom cumulative-rank=7 hzoom=0x1d4 rows=31907
+cannonball: spritezoom cumulative-rank=8 hzoom=0x26a rows=31857
+cannonball: spritezoom cumulative-rank=9 hzoom=0x288 rows=31550
+cannonball: spritezoom cumulative-rank=10 hzoom=0x3f0 rows=27969
+cannonball: spritezoom cumulative-rank=11 hzoom=0x2f1 rows=25220
+cannonball: spritezoom cumulative-rank=12 hzoom=0x2a3 rows=24379
+cannonball: videoperf fps=24 total=19 tile_update=0 road_bg=2 tile_bg=1 tile_fg=0 road_fg=4 sprites=10 text=0 black=0
+cannonball: drawperf fps=27 draw=6
+cannonball: renderperf fps=27 update=3
+cannonball: perf fps=27 avg_ms total=36 tick=1 prep=15 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=35 tick=1 prep=13 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=34 tick=1 prep=13 render=10 audio=10 state=4 target_fps=30
+cannonball: drawperf fps=28 draw=6
+cannonball: renderperf fps=28 update=3
+cannonball: perf fps=29 avg_ms total=34 tick=0 prep=12 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=34 tick=1 prep=13 render=9 audio=10 state=4 target_fps=30
+cannonball: drawperf fps=28 draw=6
+cannonball: renderperf fps=28 update=3
+cannonball: perf fps=28 avg_ms total=35 tick=1 prep=13 render=10 audio=10 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=35 tick=1 prep=14 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=27 avg_ms total=36 tick=1 prep=15 render=9 audio=10 state=4 target_fps=30
+cannonball: drawperf fps=27 draw=6
+cannonball: renderperf fps=27 update=3
+cannonball: perf fps=27 avg_ms total=35 tick=1 prep=14 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=29 avg_ms total=34 tick=0 prep=12 render=9 audio=10 state=4 target_fps=30
+cannonball: drawperf fps=29 draw=6
+cannonball: renderperf fps=29 update=3
+cannonball: perf fps=31 avg_ms total=32 tick=0 prep=11 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=27 avg_ms total=35 tick=1 prep=14 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=35 tick=1 prep=14 render=9 audio=10 state=4 target_fps=30
+cannonball: drawperf fps=28 draw=6
+cannonball: renderperf fps=28 update=3
+cannonball: perf fps=29 avg_ms total=34 tick=0 prep=12 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=29 avg_ms total=34 tick=1 prep=12 render=9 audio=10 state=4 target_fps=30
+cannonball: roadperf fps=28 control=1 rows_drawn=73 rows_skipped=150
+cannonball: spriteperf fps=28 sprites=37 shadow=26 fullclip=37 rows=452 rows_1x=65
+cannonball: spritezoom cumulative rows=1523003
+cannonball: spritezoom rank=1 hzoom=0x200 rows=57219 cumulative=135077
+cannonball: spritezoom rank=2 hzoom=0x1f8 rows=47584 cumulative=53858
+cannonball: spritezoom rank=3 hzoom=0x3f0 rows=21209 cumulative=49178
+cannonball: spritezoom rank=4 hzoom=0x2a3 rows=16058 cumulative=40437
+cannonball: spritezoom rank=5 hzoom=0x1a9 rows=15995 cumulative=35393
+cannonball: spritezoom rank=6 hzoom=0x243 rows=15576 cumulative=35964
+cannonball: spritezoom rank=7 hzoom=0x381 rows=12834 cumulative=29807
+cannonball: spritezoom rank=8 hzoom=0x329 rows=12726 cumulative=83033
+cannonball: spritezoom rank=9 hzoom=0x270 rows=11368 cumulative=25937
+cannonball: spritezoom rank=10 hzoom=0x2e0 rows=10648 cumulative=25840
+cannonball: spritezoom rank=11 hzoom=0x303 rows=10506 cumulative=20750
+cannonball: spritezoom rank=12 hzoom=0x21b rows=9479 cumulative=32296
+cannonball: spritezoom cumulative-rank=1 hzoom=0x200 rows=135077
+cannonball: spritezoom cumulative-rank=2 hzoom=0x329 rows=83033
+cannonball: spritezoom cumulative-rank=3 hzoom=0x1f8 rows=53858
+cannonball: spritezoom cumulative-rank=4 hzoom=0x3f0 rows=49178
+cannonball: spritezoom cumulative-rank=5 hzoom=0x230 rows=42932
+cannonball: spritezoom cumulative-rank=6 hzoom=0x2a3 rows=40437
+cannonball: spritezoom cumulative-rank=7 hzoom=0x18f rows=37353
+cannonball: spritezoom cumulative-rank=8 hzoom=0x2aa rows=36436
+cannonball: spritezoom cumulative-rank=9 hzoom=0x1af rows=36127
+cannonball: spritezoom cumulative-rank=10 hzoom=0x243 rows=35964
+cannonball: spritezoom cumulative-rank=11 hzoom=0x288 rows=35790
+cannonball: spritezoom cumulative-rank=12 hzoom=0x1a9 rows=35393
+cannonball: videoperf fps=28 total=13 tile_update=0 road_bg=2 tile_bg=1 tile_fg=0 road_fg=4 sprites=3 text=0 black=0
+cannonball: drawperf fps=30 draw=6
+cannonball: renderperf fps=30 update=3
+cannonball: perf fps=33 avg_ms total=30 tick=0 prep=11 render=9 audio=7 state=4 target_fps=30
+cannonball: perf fps=31 avg_ms total=31 tick=0 prep=12 render=9 audio=8 state=4 target_fps=30
+cannonball: perf fps=27 avg_ms total=36 tick=1 prep=15 render=9 audio=10 state=4 target_fps=30
+cannonball: drawperf fps=29 draw=6
+cannonball: renderperf fps=29 update=3
+cannonball: perf fps=25 avg_ms total=38 tick=1 prep=18 render=9 audio=9 state=4 target_fps=30
+cannonball: perf fps=26 avg_ms total=38 tick=0 prep=19 render=9 audio=8 state=4 target_fps=30
+cannonball: drawperf fps=27 draw=6
+cannonball: renderperf fps=27 update=3
+cannonball: perf fps=30 avg_ms total=32 tick=0 prep=13 render=9 audio=7 state=4 target_fps=30
+cannonball: perf fps=31 avg_ms total=31 tick=0 prep=10 render=9 audio=10 state=4 target_fps=30
+cannonball: perf fps=32 avg_ms total=31 tick=0 prep=7 render=9 audio=12 state=4 target_fps=30
+cannonball: drawperf fps=31 draw=6
+cannonball: renderperf fps=31 update=3
+cannonball: perf fps=29 avg_ms total=33 tick=0 prep=7 render=10 audio=14 state=4 target_fps=30
+cannonball: perf fps=30 avg_ms total=32 tick=0 prep=7 render=9 audio=14 state=4 target_fps=30
+cannonball: drawperf fps=30 draw=6
+cannonball: renderperf fps=30 update=3
+cannonball: perf fps=29 avg_ms total=33 tick=0 prep=8 render=9 audio=14 state=4 target_fps=30
+cannonball: stage advanced 0 -> 1, stage_lookup_off=9, calling arch_exit()
+INFO: Double Buffer video enabled
+vid_set_mode: 640x480 VGA with 1 framebuffers.
+Program returned 0
