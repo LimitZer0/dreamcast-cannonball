@@ -47,20 +47,15 @@ cleanly, wait for `Program returned 0` / the dcload prompt, remove
 upload again — no physical controller input needed between routes. The
 sentinel must be removed before the next upload or that run exits immediately.
 
-### First A→A capture (`docs/route-matrix-results.md`) — needs a rerun
+### First A→A capture (`docs/route-matrix-results.md`) — rerun complete
 
-A first stage-1/`DREAMCAST_START_LEVEL=0` capture exists at
-`docs/route-matrix-results.md`, but it shouldn't be trusted as the "A→A"
-baseline yet — two open problems, not just the missing raw log the results
-doc already flags:
+A durable stage-1/`DREAMCAST_START_LEVEL=0` rerun now exists at
+`logs/route-matrix/route-A-A-rerun.log` and is summarized in
+`docs/route-matrix-results.md`. It exited cleanly through the sentinel path.
+The run still should not be labeled definitively "A→A" until the fork path is
+verified:
 
-1. **No durable raw log.** The only record is summary numbers transcribed
-   from an interactive `kos-tool` session — not independently verifiable,
-   not reprocessable for additional stats. Any rerun must pipe through
-   `tee` from the start: `kos-tool -t 192.168.0.128 -x cannonball.elf -m cd/
-   2>&1 | tee /tmp/cannonball-route-<cell>.log`, then copy the log
-   somewhere durable once the run's confirmed good.
-2. **The "A→A" label was never actually verified.** Which fork gets taken
+1. **The "A→A" label is not yet verified.** Which fork gets taken
    at each stage split depends on `car_x_pos > 0` at that checkpoint
    (`oinitengine.cpp:627-663`) — i.e. which side of the road the car is
    steered to, driven by `oattractai.cpp`'s AI logic during attract mode,
@@ -75,14 +70,12 @@ doc already flags:
    they're not, the whole A-E labeling scheme needs a different way to
    pin down which route was taken, not just which stage it started at.
 
-Also missing from that capture, per this file's own methodology above:
-graphics settings (resolution/widescreen/scale/hires) used for the run
-weren't recorded, and it should be noted explicitly whether
-`DREAMCAST_FAST_SPRITES` was on or off for future readers (it was `ON` for
-this capture — harmless for hzoom-histogram purposes since the profiler
-counts `hzoom` values regardless of which draw path renders them, but
-worth stating so nobody assumes this represents the "before" state for the
-LUT-optimization comparison).
+The rerun records the graphics settings in `docs/route-matrix-results.md`:
+640x480, widescreen `1`, hires `0`, scale `2`, FPS mode `2`, and vsync `1`.
+`DREAMCAST_FAST_SPRITES` was `ON`; this is harmless for hzoom-histogram
+purposes since the profiler counts `hzoom` values regardless of which draw
+path renders them, but it is not a "before" capture for the LUT-optimization
+comparison.
 
 There's a known intermittent crash-on-exit (see harness doc's
 `DREAMCAST_AUTOSTART` section) that has at least once required a full

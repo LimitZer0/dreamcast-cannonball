@@ -81,6 +81,36 @@ bool Render::init(int src_width, int src_height,
     // In windowed mode it's the size of the window. 
    
     // --------------------------------------------------------------------------------------------
+    // Dreamcast native low-res mode: request the PVR's real 320x240 video mode
+    // directly instead of stretching up to whatever the display's current mode
+    // is (normally 640x480). Only src_width==320 matches a mode the PVR driver
+    // actually supports (DM_320x240) -- widescreen's 398px width doesn't match
+    // any entry in DREAMCAST_SetDisplayMode's table and falls through to the
+    // existing fullscreen-stretch path below.
+    // --------------------------------------------------------------------------------------------
+#ifdef __DREAMCAST__
+    if (src_width == 320)
+    {
+        scn_width  = src_width;
+        scn_height = src_height < 240 ? 240 : src_height;
+
+        src_rect.w = src_width;
+        src_rect.h = src_height;
+        src_rect.x = 0;
+        src_rect.y = 0;
+
+        // Centered, unscaled -- exact 1:1 pixel mapping, no GPU stretch.
+        dst_rect.w = src_width;
+        dst_rect.h = src_height;
+        dst_rect.x = 0;
+        dst_rect.y = (scn_height - src_height) / 2;
+
+        flags &= ~SDL_WINDOW_FULLSCREEN;
+        SDL_ShowCursor(false);
+    }
+    else
+#endif
+    // --------------------------------------------------------------------------------------------
     // Full Screen Mode
     // --------------------------------------------------------------------------------------------
     if (video_mode == video_settings_t::MODE_FULL || video_mode == video_settings_t::MODE_STRETCH)
@@ -379,8 +409,7 @@ bool Render::finalize_frame()
     uint32_t perf_start = SDL_GetTicks();
     SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch);
     SDL_RenderClear(renderer);
-    SDL_Rect dst = { 0, 0, 640, 480 };
-    SDL_RenderCopy(renderer, texture, NULL, &dst);
+    SDL_RenderCopy(renderer, texture, NULL, &dst_rect);
     SDL_RenderPresent(renderer);
     perf_update += SDL_GetTicks() - perf_start;
 #else

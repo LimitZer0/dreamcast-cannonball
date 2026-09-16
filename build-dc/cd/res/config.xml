@@ -55,7 +55,7 @@
     <fps_counter>0</fps_counter>
     
     <!-- Enhanced Widescreen Mode -->
-    <widescreen>1</widescreen>
+    <widescreen>0</widescreen>
     
     <!-- Higher Internal Resolution. Better Sprite Scaling, but has a performance hit. 
          Disable for original experience. -->
