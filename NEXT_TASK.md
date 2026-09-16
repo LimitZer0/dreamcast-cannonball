@@ -5,6 +5,22 @@ The native-320x240 stage-1 rerun is documented in
 `logs/route-matrix/route-A-A-native320-rerun.log`. It exited cleanly; future
 matrix cells must use `tee` when launching `kos-tool`.
 
+All documented start bytes have now been attempted. Clean captures include
+`0x00`, `0x09`, `0x08`, `0x12`, `0x11`, `0x10`, `0x1B`, `0x19`, `0x18`,
+`0x24`, `0x22`, `0x21`, and `0x20`. Hardware crashes occurred at `0x1A` and
+`0x23`; their raw logs and stack locations are recorded in
+`docs/route-matrix-results.md`.
+
+The next stage-2 candidate (`DREAMCAST_START_LEVEL=0x09`) is also captured at
+`logs/route-matrix/stage-2-0x09-native320.log`; it exited cleanly, but its
+route identity is intentionally unassigned until fork choices are verified.
+
+The unattended batches completed `0x12`, `0x11`, `0x10`, `0x1B`, `0x19`,
+`0x18`, `0x24`, `0x22`, `0x21`, and `0x20` cleanly. The `0x1A` cell crashed
+in `genwait_wait`/`SDL_Delay`, and `0x23` crashed in
+`DREAMCASTAUD_WaitDevice`/`SDL_RunAudio`; both required dcload recovery and
+remain documented as failed hardware cells.
+
 Continues `DREAMCAST_OPTIMIZATION_NOTES.md` next step #3 ("Consider
 lookup/table or span-based rendering for common hzoom values to avoid
 per-output-pixel xacc loops"). A separate session already started a baseline

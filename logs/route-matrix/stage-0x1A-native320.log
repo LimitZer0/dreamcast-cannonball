@@ -1,0 +1,157 @@
+Connecting to 192.168.0.128...
+dc-load-ip 3.0.1 using Broadband Adapter (HIT-0400)
+Console enabled
+Upload <cannonball.elf>
+File format is ELF, start address is 0x8c010000
+Section .text, lma 0x8c010000, size 1722264
+Section .init, lma 0x8c1b6000, size 54
+Section .fini, lma 0x8c1b6038, size 42
+Section .rodata, lma 0x8c1b6080, size 177444
+Section .eh_frame, lma 0x8c1e15a4, size 97748
+Section .gcc_except_table, lma 0x8c1f9378, size 11265
+Section .ctors, lma 0x8c1fbffc, size 52
+Section .dtors, lma 0x8c1fc030, size 8
+Section .data, lma 0x8c1fc038, size 12952
+Section .got, lma 0x8c1ff2d0, size 12
+Transferred 2021841 bytes at 4807291 bytes / sec
+Executing at 0x8c010000
+Sending execute command (0xac010000, console=1, cdfsredir=0)...argv(1, argv0="cannonball.elf")...executing
+
+--
+KallistiOS v2.3.0 [dreamcast/pristine]
+  Git revision: fcfa7d86
+  Mon Sep 14 01:18:49 PM MST 2026
+  gpf@gpf-B550-Phantom-Gaming-4-ac:/opt/toolchains/dc/kos
+  sh-elf-gcc (GCC) 17.0.0 20260703 (experimental)
+maple: active drivers:
+    Dreameye (Camera): Camera
+    Sound Input Peripheral: Microphone
+    PuruPuru (Vibration) Pack: JumpPack
+    VMU Driver: Clock, LCD, MemoryCard
+    Mouse Driver: Mouse
+    Keyboard Driver: Keyboard
+    Controller Driver: Controller
+    Lightgun: LightGun
+vid_set_mode: 640x480 VGA with 1 framebuffers.
+dc-load console support enabled
+maple: attached devices:
+  A0: Dreamcast Controller           (01000000: Controller)
+  A1: Visual Memory                  (0e000000: Clock, LCD, MemoryCard)
+  D0: Keyboard                       (40000000: Keyboard)
+
+cannonball: Config::load cfg=/cd/config.xml
+fs_iso9660: disc change detected
+cannonball: Config::load failed to read /cd/config.xml
+cannonball: Config::load using /pc/config.xml fallback
+[VMU] Open file /vmu/a1/CANNON
+[VMU] Open file /vmu/a1/CANNON: OK
+[VMU] Loaded settings from CANNON (624 bytes)
+cannonball: Config::load dreamcast parser done
+INFO: SDL2 Dreamcast video initialized: 640x480
+Initializing joysticks...
+No rumble device at port 0
+Joystick found at port 0
+No joystick at port 1
+No joystick at port 2
+No joystick at port 3
+No joystick at port 4
+No joystick at port 5
+No joystick at port 6
+No joystick at port 7
+Number of joysticks initialized: 1
+INFO: Initializing dreamcast haptic devices...
+INFO: Opening audio device
+INFO: Buffer size: 4096
+INFO: 16-bit PCM audio format enabled
+INFO: Dreamcast audio driver initialized
+cannonball: audio desired freq=11025 fmt=0x8010 channels=2 samples=1024 obtained freq=11025 fmt=0x8010 channels=2 samples=1024
+cannonball: Dreamcast render layout src=320x224 screen=320x240 dst=0,8 320x224 mode=2
+INFO: Display modes for Dreamcast retrieved successfully.
+INFO: DREAMCAST_CreateWindow: window 640x480 created for native PVR renderer
+INFO: Double Buffer video enabled
+vid_set_mode: 320x240 VGA with 1 framebuffers.
+INFO: Dreamcast PVR
+cannonball: renderer=0x8c8adc28 name=Dreamcast PVR flags=0xe
+cannonball: creating texture 320x240 surface=320x240 src=320x224 dst=320x224
+cannonball: created texture=0x8c8ade88 actual=320x240 format=SDL_PIXELFORMAT_RGB565 access=1 renderer=0x8c8adc28
+cannonball: Dreamcast texture framebuffer surface=320x240 pitch=640 format=SDL_PIXELFORMAT_RGB565
+cannonball: state -1 -> 1 frame=1
+cannonball: state 1 -> 2 frame=2
+cannonball: state 2 -> 3 frame=4
+[VMU] Open file /vmu/a1/CANNON
+[VMU] Open file /vmu/a1/CANNON: OK
+[VMU] Loaded 20 score entries from CANNON (624 bytes)
+cannonball: state 3 -> 4 frame=5
+cannonball: perf fps=14 avg_ms total=67 tick=12 prep=39 render=10 audio=4 state=4 target_fps=30
+cannonball: perf fps=20 avg_ms total=49 tick=0 prep=33 render=9 audio=5 state=4 target_fps=30
+cannonball: drawperf fps=19 draw=7
+cannonball: renderperf fps=19 update=3
+cannonball: perf fps=28 avg_ms total=35 tick=0 prep=19 render=9 audio=4 state=4 target_fps=30
+cannonball: perf fps=24 avg_ms total=40 tick=0 prep=25 render=9 audio=4 state=4 target_fps=30
+cannonball: drawperf fps=26 draw=6
+cannonball: renderperf fps=26 update=3
+cannonball: perf fps=26 avg_ms total=37 tick=0 prep=21 render=10 audio=4 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=34 tick=0 prep=17 render=9 audio=4 state=4 target_fps=30
+cannonball: perf fps=26 avg_ms total=37 tick=0 prep=21 render=10 audio=4 state=4 target_fps=30
+cannonball: drawperf fps=27 draw=6
+cannonball: renderperf fps=27 update=3
+cannonball: perf fps=27 avg_ms total=36 tick=0 prep=21 render=9 audio=4 state=4 target_fps=30
+cannonball: perf fps=28 avg_ms total=35 tick=0 prep=19 render=9 audio=4 state=4 target_fps=30
+cannonball: drawperf fps=27 draw=6
+cannonball: renderperf fps=27 update=3
+cannonball: perf fps=26 avg_ms total=37 tick=0 prep=17 render=9 audio=4 state=4 target_fps=30
+cannonball: perf fps=30 avg_ms total=32 tick=0 prep=11 render=9 audio=4 state=4 target_fps=30
+cannonball: perf fps=29 avg_ms total=34 tick=1 prep=15 render=9 audio=4 state=4 target_fps=30
+cannonball: drawperf fps=29 draw=6
+cannonball: renderperf fps=29 update=3
+cannonball: perf fps=29 avg_ms total=34 tick=1 prep=16 render=9 audio=4 state=4 target_fps=30
+cannonball: perf fps=29 avg_ms total=34 tick=0 prep=15 render=10 audio=4 state=4 target_fps=30
+cannonball: roadperf fps=26 control=1 rows_drawn=91 rows_skipped=132
+cannonball: spriteperf fps=26 sprites=46 shadow=41 fullclip=46 rows=1393 rows_1x=54
+cannonball: spritezoom cumulative rows=1113433
+cannonball: spritezoom rank=1 hzoom=0x3f0 rows=47116 cumulative=47116
+cannonball: spritezoom rank=2 hzoom=0x200 rows=43419 cumulative=43419
+cannonball: spritezoom rank=3 hzoom=0x381 rows=30200 cumulative=30200
+cannonball: spritezoom rank=4 hzoom=0x2a3 rows=29856 cumulative=29856
+cannonball: spritezoom rank=5 hzoom=0x329 rows=29584 cumulative=29584
+cannonball: spritezoom rank=6 hzoom=0x243 rows=29424 cumulative=29424
+cannonball: spritezoom rank=7 hzoom=0x270 rows=27974 cumulative=27974
+cannonball: spritezoom rank=8 hzoom=0x303 rows=25217 cumulative=25217
+cannonball: spritezoom rank=9 hzoom=0x2e0 rows=24214 cumulative=24214
+cannonball: spritezoom rank=10 hzoom=0x21b rows=22381 cumulative=22381
+cannonball: spritezoom rank=11 hzoom=0x20c rows=22271 cumulative=22271
+cannonball: spritezoom rank=12 hzoom=0x353 rows=22222 cumulative=22222
+cannonball: spritezoom cumulative-rank=1 hzoom=0x3f0 rows=47116
+cannonball: spritezoom cumulative-rank=2 hzoom=0x200 rows=43419
+cannonball: spritezoom cumulative-rank=3 hzoom=0x381 rows=30200
+cannonball: spritezoom cumulative-rank=4 hzoom=0x2a3 rows=29856
+cannonball: spritezoom cumulative-rank=5 hzoom=0x329 rows=29584
+cannonball: spritezoom cumulative-rank=6 hzoom=0x243 rows=29424
+cannonball: spritezoom cumulative-rank=7 hzoom=0x270 rows=27974
+cannonball: spritezoom cumulative-rank=8 hzoom=0x303 rows=25217
+cannonball: spritezoom cumulative-rank=9 hzoom=0x2e0 rows=24214
+cannonball: spritezoom cumulative-rank=10 hzoom=0x21b rows=22381
+cannonball: spritezoom cumulative-rank=11 hzoom=0x20c rows=22271
+cannonball: spritezoom cumulative-rank=12 hzoom=0x353 rows=22222
+cannonball: videoperf fps=26 total=19 tile_update=0 road_bg=2 tile_bg=0 tile_fg=0 road_fg=7 sprites=8 text=0 black=0
+cannonball: drawperf fps=29 draw=6
+cannonball: renderperf fps=29 update=3
+cannonball: perf fps=29 avg_ms total=34 tick=0 prep=15 render=9 audio=4 state=4 target_fps=30
+cannonball: perf fps=29 avg_ms total=34 tick=0 prep=16 render=10 audio=4 state=4 target_fps=30
+Unhandled exception: PC 8c128f22, code 1, evt 00e0
+ R0-R7: 00000000 0c8ac001 00008c25 00000000 ffffffff 8c429de0 8c429edc 8c26a734
+ R8-R15: 40000101 00008c25 00000000 0017c433 00000023 ffd80024 8c24a338 8c62a04c
+ SR 400001f0 PR 8c016842
+-------- Stack Trace (innermost first) ---------
+   8c01683e   thd_sleep at /home/gpf/code/dreamcast/cannonball/build-dc/../../../../../../opt/toolchains/dc/kos/kernel/thread/thread.c:828
+   8c017cd0   dreamcast_main_thread(void*) [clone .lto_priv.0] at /home/gpf/code/dreamcast/cannonball/src/main/main.cpp:496
+   8c13672a   thd_birth at /home/gpf/code/dreamcast/cannonball/build-dc/../../../../../../opt/toolchains/dc/kos/kernel/thread/thread.c:293
+-------------- End Stack Trace -----------------
+
+Encountered Data address error (read). Use this template terminal command to help diagnose:
+
+	$KOS_ADDR2LINE -f -C -i -e prog.elf 8c128f22 8c016842 8c01683e 8c017cd0 8c13672a
+
+kernel panic: unhandled IRQ/Exception
+arch: aborting the system
+Program returned 1

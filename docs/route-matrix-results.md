@@ -2,6 +2,65 @@
 
 ## Stage-1 baseline / A→A capture
 
+## Stage-4 candidate (`DREAMCAST_START_LEVEL=0x1A`)
+
+- Durable raw log: `logs/route-matrix/stage-0x1A-native320.log`
+- Native path and gameplay boot verified: `vid_set_mode: 320x240 VGA`,
+  `state 3 -> 4 frame=5`
+- First profiling window: `spriteperf fps=26 sprites=46 shadow=41 fullclip=46 rows=1393 rows_1x=54`; cumulative rows `1113433`
+- Result: hardware data-address read error; `Program returned 1`
+- Address resolution: `genwait_wait` during `SDL_Delay` in `main_loop`
+  (`src/main/main.cpp:341`), not a sprite-rasterizer address
+- Matrix status: batch stopped before `0x19`; console recovery is required
+  before the next upload.
+
+## Stage-5 candidate (`DREAMCAST_START_LEVEL=0x23`)
+
+- Durable raw log: `logs/route-matrix/stage-0x23-native320.log`
+- Native path and gameplay boot verified: `vid_set_mode: 320x240 VGA`,
+  `state 3 -> 4 frame=5`
+- Crash occurred before the first `spriteperf` report
+- Result: hardware data-address read error in the audio thread at
+  `DREAMCASTAUD_WaitDevice` / `SDL_RunAudio`; `Program returned 1`
+- Matrix status: batch stopped before `0x22`; console recovery is required
+  before the next upload.
+
+## Stage-5 final candidates (`0x22`, `0x21`, `0x20`)
+
+All three completed cleanly in native 320x240 mode with two profiling windows:
+
+| Start byte | Raw log | Interval 1 / cumulative rows | Interval 2 / cumulative rows | Exit |
+|---|---|---|---|---|
+| `0x22` | `logs/route-matrix/stage-0x22-native320.log` | 25 FPS, 66 sprites, 792 rows / 596208 | 24 FPS, 47 sprites, 743 rows / 1152658 | `Program returned 0` |
+| `0x21` | `logs/route-matrix/stage-0x21-native320.log` | 24 FPS, 47 sprites, 731 rows / 542544 | 29 FPS, 41 sprites, 571 rows / 1046956 | `Program returned 0` |
+| `0x20` | `logs/route-matrix/stage-0x20-native320.log` | 27 FPS, 54 sprites, 913 rows / 747609 | 27 FPS, 56 sprites, 799 rows / 1414958 | `Program returned 0` |
+
+## Additional clean captures
+
+These clean raw logs were previously present on disk but omitted from the
+summary table:
+
+| Start byte | Raw log | Interval 1 / cumulative rows | Interval 2 / cumulative rows | Exit |
+|---|---|---|---|---|
+| `0x18` | `logs/route-matrix/stage-0x18-native320.log` | 27 FPS, 59 sprites, 1108 rows / 910961 | 29 FPS, 59 sprites, 628 rows / 1463627 | `Program returned 0` |
+| `0x19` | `logs/route-matrix/stage-0x19-native320.log` | 27 FPS, 56 sprites, 912 rows / 747492 | 26 FPS, 57 sprites, 852 rows / 1419570 | `Program returned 0` |
+| `0x24` | `logs/route-matrix/stage-0x24-native320.log` | 27 FPS, 55 sprites, 756 rows / 625391 | 29 FPS, 51 sprites, 507 rows / 1071393 | `Program returned 0` |
+| `0x10` | `logs/route-matrix/stage-0x10-native320.log` | 23 FPS, 46 sprites, 930 rows / 644618 | 18 FPS, 64 sprites, 1076 rows / 1239722 | `Program returned 0` |
+| `0x11` | `logs/route-matrix/stage-0x11-native320.log` | 27 FPS, 54 sprites, 702 rows / 584429 | 29 FPS, 45 sprites, 396 rows / 931140 | `Program returned 0` |
+| `0x12` | `logs/route-matrix/stage-0x12-native320.log` | 27 FPS, 58 sprites, 693 rows / 576846 | 29 FPS, 59 sprites, 463 rows / 986653 | `Program returned 0` |
+| `0x1B` | `logs/route-matrix/stage-0x1B-native320.log` | 26 FPS, 39 sprites, 545 rows / 429497 | 27 FPS, 32 sprites, 294 rows / 675589 | `Program returned 0` |
+
+## Stage-2 branch candidate (`DREAMCAST_START_LEVEL=0x09`)
+
+- Durable raw log: `logs/route-matrix/stage-2-0x09-native320.log`
+- Build: fast sprites, zoom profiler, autostart; start level `0x09`
+- Native path verified: `vid_set_mode: 320x240 VGA`; layout `screen=320x240 dst=0,8 320x224`
+- Profiling windows captured: 2
+- First interval: `spriteperf fps=20 sprites=61 shadow=54 fullclip=61 rows=1269 rows_1x=60`; cumulative rows `769565`
+- Second interval: `spriteperf fps=17 sprites=59 shadow=55 fullclip=59 rows=1274 rows_1x=55`; cumulative rows `1455390`
+- Exit: `/pc/exit_now` detected; `Program returned 0`; sentinel removed
+- Route identity: not assigned; `0x09` identifies the stage-2 start byte, not a confirmed A→B fork.
+
 ### Native 320x240 rerun — 2026-09-15
 
 - Durable raw log: `logs/route-matrix/route-A-A-native320-rerun.log`
