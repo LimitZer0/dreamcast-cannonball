@@ -61,6 +61,22 @@ summary table:
 - Exit: `/pc/exit_now` detected; `Program returned 0`; sentinel removed
 - Route identity: not assigned; `0x09` identifies the stage-2 start byte, not a confirmed A→B fork.
 
+## Stage-2 branch candidate (`DREAMCAST_START_LEVEL=0x08`)
+
+- Durable raw log: `logs/route-matrix/stage-0x08-native320.log`
+- Build: fast sprites, zoom profiler, autostart; start level `0x08`
+- Native path and gameplay boot verified: `vid_set_mode: 320x240 VGA`,
+  `state 3 -> 4 frame=5`
+- Profiling windows captured: 2
+- First interval: `spriteperf fps=23 sprites=39 shadow=33 fullclip=39 rows=1018 rows_1x=51`; cumulative rows `722347`
+- Second interval: `spriteperf fps=24 sprites=31 shadow=29 fullclip=31 rows=815 rows_1x=45`; cumulative rows `1316923`
+- Exit: `/pc/exit_now` detected; `Program returned 0`; sentinel removed
+- Route identity: not assigned; `0x08` identifies the stage-2 start byte, not a confirmed A→B fork.
+
+With `0x08` and `0x09` both captured, the stage-2 branch pair is complete —
+15 of 15 `STAGE_LOOKUP` bytes now attempted (13 clean, 2 hardware crashes:
+`0x1A`, `0x23`).
+
 ### Native 320x240 rerun — 2026-09-15
 
 - Durable raw log: `logs/route-matrix/route-A-A-native320-rerun.log`

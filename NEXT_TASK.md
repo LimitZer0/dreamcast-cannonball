@@ -5,19 +5,18 @@ The native-320x240 stage-1 rerun is documented in
 `logs/route-matrix/route-A-A-native320-rerun.log`. It exited cleanly; future
 matrix cells must use `tee` when launching `kos-tool`.
 
-14 of 15 `STAGE_LOOKUP` bytes have been attempted. Clean captures:
-`0x00`, `0x09`, `0x12`, `0x11`, `0x10`, `0x1B`, `0x19`, `0x18`, `0x24`,
-`0x22`, `0x21`, and `0x20`. Hardware crashes occurred at `0x1A` and `0x23`;
+15 of 15 `STAGE_LOOKUP` bytes have now been attempted. There are 13 clean
+captures: `0x00`, `0x09`, `0x08`, `0x12`, `0x11`, `0x10`, `0x1B`, `0x19`,
+`0x18`, `0x24`, `0x22`, `0x21`, and `0x20`. Hardware crashes occurred at
+`0x1A` and `0x23`;
 their raw logs and stack locations are recorded in
-`docs/route-matrix-results.md`. **`0x08`** (the other stage-2 branch,
-alongside the already-captured `0x09`) **has never been attempted** — no log
-file exists for it; a prior version of this note incorrectly listed it as a
-clean capture.
+`docs/route-matrix-results.md`. The missing `0x08` stage-2 branch was then
+captured cleanly at `logs/route-matrix/stage-0x08-native320.log`.
 
 **This stage-byte batch is a different, narrower thing than the "record a
 complete run for every route" methodology described elsewhere in this
 file** (see "Data collection: route-coverage matrix" below) — don't treat it
-as having satisfied that task. Each of these 14 captures is a short (~60s,
+as having satisfied that task. Each of these 15 attempts is a short (~60s,
 2 profiling-window) sample starting *fresh* at one isolated
 `DREAMCAST_START_LEVEL` byte via a cold boot, not a continuous playthrough
 of an entire 5-stage route from its actual start to its ending. None of them
