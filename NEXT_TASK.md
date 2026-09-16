@@ -1,9 +1,9 @@
 # Next Task: Sprite Horizontal-Zoom Lookup Table
 
-The first stage-1 baseline capture is documented in
-`docs/route-matrix-results.md`. The successful session exited cleanly, but its
-raw output was not persisted; future matrix cells must use `tee` when
-launching `kos-tool`.
+The native-320x240 stage-1 rerun is documented in
+`docs/route-matrix-results.md`, with raw output at
+`logs/route-matrix/route-A-A-native320-rerun.log`. It exited cleanly; future
+matrix cells must use `tee` when launching `kos-tool`.
 
 Continues `DREAMCAST_OPTIMIZATION_NOTES.md` next step #3 ("Consider
 lookup/table or span-based rendering for common hzoom values to avoid
@@ -71,7 +71,8 @@ verified:
    pin down which route was taken, not just which stage it started at.
 
 The rerun records the graphics settings in `docs/route-matrix-results.md`:
-640x480, widescreen `1`, hires `0`, scale `2`, FPS mode `2`, and vsync `1`.
+native 320x240, widescreen `0`, hires `0`, scale `2`, FPS mode `2`, and
+vsync `1`.
 `DREAMCAST_FAST_SPRITES` was `ON`; this is harmless for hzoom-histogram
 purposes since the profiler counts `hzoom` values regardless of which draw
 path renders them, but it is not a "before" capture for the LUT-optimization

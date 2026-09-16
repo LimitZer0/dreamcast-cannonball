@@ -2,6 +2,32 @@
 
 ## Stage-1 baseline / A→A capture
 
+### Native 320x240 rerun — 2026-09-15
+
+- Durable raw log: `logs/route-matrix/route-A-A-native320-rerun.log`
+- Build: `DREAMCAST_FAST_SPRITES=ON`, `DREAMCAST_SPRITE_ZOOM_PROFILE=ON`,
+  `DREAMCAST_AUTOSTART=ON`, `DREAMCAST_START_LEVEL=0`
+- Default graphics: widescreen `0`, hires `0`, scale `2`, FPS mode `2`,
+  vsync `1`
+- Native path verified: `screen=320x240 dst=0,8 320x224`; PVR mode
+  `320x240 VGA`; texture `320x240`
+- Boot/gameplay verified: `state 3 -> 4 frame=5`
+- Profiling windows captured: 2
+- First interval: `spriteperf fps=28 sprites=40 shadow=34 fullclip=40 rows=816 rows_1x=53`; cumulative rows `694466`
+- Second interval: `spriteperf fps=29 sprites=34 shadow=26 fullclip=34 rows=499 rows_1x=49`; cumulative rows `1132116`
+- Exit: `/pc/exit_now` detected; `Program returned 0`; sentinel removed
+- Route identity: still unverified; stage 1 start is not proof of A→A fork choices.
+- **Direct comparison vs. the 640x480-stretch rerun below (same deterministic
+  AI route, sprite/road row counts within 2 of each other — the cleanest
+  apples-to-apples sample this session):** `drawperf`/`renderperf` are
+  identical (`draw=6ms`, `update=3ms` in both), and sprite/road CPU cost is
+  unchanged (expected — always computed at the internal 320x224 buffer
+  regardless of output resolution). **This is a correctness/quality change,
+  not a measured performance win** — the 640x480 GPU stretch blit was
+  apparently already cheap on this hardware. Don't cite this rerun as a perf
+  improvement; the benefit is exact 1:1 pixel mapping (no stretch distortion)
+  matching the original hardware's native display characteristics.
+
 ### Rerun — 2026-09-15
 
 - Durable raw log: `logs/route-matrix/route-A-A-rerun.log`
