@@ -37,6 +37,8 @@
 #include "engine/oinputs.hpp"
 #include "engine/ooutputs.hpp"
 #include "engine/omusic.hpp"
+#include "engine/oroad.hpp"
+#include "engine/ostats.hpp"
 
 // Direct X Haptic Support.
 // Fine to include on non-windows builds as dummy functions used.
@@ -197,6 +199,28 @@ static void tick()
             arch_exit();
         }
     }
+#ifdef DREAMCAST_EXIT_ON_STAGE_ADVANCE
+    // Auto-exit once the current stage's road split has actually been
+    // played through (ostats.cur_stage advances) -- for capturing exactly
+    // one stage/fork per run instead of an arbitrary time budget. Latches
+    // the baseline stage on the first STATE_GAME frame seen.
+    if (state == STATE_GAME)
+    {
+        static bool dc_stage_baseline_set = false;
+        static int8_t dc_stage_baseline = 0;
+        if (!dc_stage_baseline_set)
+        {
+            dc_stage_baseline = ostats.cur_stage;
+            dc_stage_baseline_set = true;
+        }
+        else if (ostats.cur_stage != dc_stage_baseline)
+        {
+            DC_TRACE("cannonball: stage advanced %d -> %d, stage_lookup_off=%d, calling arch_exit()\n",
+                     dc_stage_baseline, ostats.cur_stage, oroad.stage_lookup_off);
+            arch_exit();
+        }
+    }
+#endif
 #endif
 
     process_events();

@@ -47,6 +47,20 @@
 
 OAttractAI oattractai;
 
+// Force the enhanced AI's per-stage route pick instead of std::rand() & 1:
+// 0 = natural/random (default), positive = force sprite_ai_x=1, negative =
+// force sprite_ai_x=0. Set via the Dreamcast build's DREAMCAST_FORCE_FORK
+// cmake option; falls back to 0 (natural) on non-Dreamcast builds since
+// this is shared source. This is the actual fork decision point when
+// config.engine.new_attract is set (tick_ai_enhanced, not tick_ai's
+// hardcoded ROUTE_INFO table) -- oinitengine.cpp's route_selected/
+// stage_lookup_off already follow car_x_pos naturally once the car is
+// actually steered to the corresponding side, so no separate override is
+// needed there.
+#ifndef DREAMCAST_FORCE_FORK
+#define DREAMCAST_FORCE_FORK 0
+#endif
+
 OAttractAI::OAttractAI(void)
 {
     srand((unsigned int) time(NULL));
@@ -73,9 +87,13 @@ void OAttractAI::tick_ai_enhanced()
     // --------------------------------------------------------------------------------------------
 
     if (last_stage != ostats.cur_stage)
-    {     
+    {
         last_stage           = ostats.cur_stage;
-        oferrari.sprite_ai_x = std::rand() & 1;     
+#if DREAMCAST_FORCE_FORK != 0
+        oferrari.sprite_ai_x = DREAMCAST_FORCE_FORK > 0 ? 1 : 0;
+#else
+        oferrari.sprite_ai_x = std::rand() & 1;
+#endif
     }
 
     // --------------------------------------------------------------------------------------------

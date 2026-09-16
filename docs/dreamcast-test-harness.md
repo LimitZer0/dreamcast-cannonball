@@ -302,6 +302,74 @@ Hardware-verified: boots straight into stage 3's opening/scenery (visibly
 different background at the stage-start screen vs. the default coastal
 stage 1 opening), same `STATE_GAME` timing as the default-level boot.
 
+### `DREAMCAST_FORCE_FORK` (cmake option, default `0` = natural/random)
+
+Forces which way the AI-driven car steers at a road-split fork, for
+capturing a specific route deterministically instead of leaving it to
+chance. `0` = natural, positive = force left, negative = force right.
+
+**There are two different route-decision mechanisms in this codebase, and
+only one of them is active with this project's settings** —
+`config.engine.new_attract=1` (the default, see `res/config.xml`) selects
+`OAttractAI::tick_ai_enhanced()` over the legacy `tick_ai()` for `GS_ATTRACT`
+(`oferrari.cpp:326-336`). Don't confuse the two:
+
+- `tick_ai()` (legacy, **not active** under `new_attract=1`) reads a
+  hardcoded `ROUTE_INFO[]` table keyed by `ostats.cur_stage`
+  (`oattractai.cpp` "ORIGINAL AI CODE" section) — deterministic by stage,
+  ported from the arcade ROM disassembly.
+- `tick_ai_enhanced()` (**the actual active path**) picks a genuinely
+  random `oferrari.sprite_ai_x` (0 or 1) once per stage
+  (`oattractai.cpp:75-79`) and steers toward whichever road that
+  corresponds to. This is what `DREAMCAST_FORCE_FORK` overrides.
+
+**Do not** try to force the fork by patching `oinitengine.cpp`'s
+`init_split3()` (`if (car_x_pos > 0)` — decides `route_selected`/
+`oroad.stage_lookup_off`, i.e. which track *data* loads next) — that was
+the first attempt and it caused a real, hardware-confirmed bug: the AI's
+steering target (`sprite_ai_x`) is decided independently and earlier, so
+overriding only the data-loading side produces a car that's still steered
+toward the *natural* (random) choice while the road surface underneath it
+has been switched to the *forced* branch — the car visually drove off the
+pavement, then found its way back once things reconciled. `car_x_pos` is a
+consequence of wherever `sprite_ai_x` actually steers the car, not an
+independent lever — force the steering source (`sprite_ai_x`) and
+`oinitengine.cpp`'s unmodified, natural `car_x_pos > 0` check will follow
+correctly on its own.
+
+```bash
+cmake -DDREAMCAST_FORCE_FORK=1 .    # force left
+cmake -DDREAMCAST_FORCE_FORK=-1 .   # force right
+make
+```
+
+Hardware-verified both directions clean (no off-road drift, correct visual
+steering) and confirmed against `oroad.stage_lookup_off` in the
+`DREAMCAST_EXIT_ON_STAGE_ADVANCE` trace below: forcing left yields
+`stage_lookup_off=9` (the `car_x_pos>0` branch's `+1` on top of the `+8`
+baseline every stage transition adds), forcing right yields `8`.
+
+### `DREAMCAST_EXIT_ON_STAGE_ADVANCE` (cmake option, default OFF)
+
+Auto-exits (same `arch_exit()` path as the `/pc/exit_now` sentinel) the
+moment `ostats.cur_stage` advances past its value at the start of
+`STATE_GAME` — i.e. once the current stage's road split has actually been
+played through and the next stage has begun. Lets a route-matrix capture
+stop precisely at one stage's fork instead of an arbitrary frame/time
+budget, and combined with `DREAMCAST_FORCE_FORK` makes a genuine
+"play through exactly this one fork in this one direction, then stop"
+capture possible — the actual "record a complete run through a fork"
+methodology the stage-byte sampling batch didn't satisfy.
+
+```bash
+cmake -DDREAMCAST_EXIT_ON_STAGE_ADVANCE=ON .
+make
+```
+
+Hardware-verified: fired cleanly (`"stage advanced 0 -> 1,
+stage_lookup_off=<n>, calling arch_exit()"`, `Program returned 0`) on every
+test run, natural and both forced directions.
+
 ## Perf log field reference
 
 All emitted via `dbglog`/`DC_*_TRACE` under `__DREAMCAST__`, one line per

@@ -29,6 +29,30 @@ cumulative counter over its ~60s lifetime. Useful as a coarse baseline
 full-route, fork-to-ending capture methodology below is still an open,
 separate task.
 
+**Update: the tooling blocker for full-route capture is now resolved.**
+`DREAMCAST_FORCE_FORK` (`oattractai.cpp`) and `DREAMCAST_EXIT_ON_STAGE_ADVANCE`
+(`main.cpp`) — see harness doc — let a capture deterministically choose
+left/right at each fork and stop exactly when the next stage begins,
+instead of an arbitrary time budget. Both hardware-verified clean in both
+directions (no off-road drift, correct `oroad.stage_lookup_off`). The
+"route identity: not assigned" caveat throughout `docs/route-matrix-results.md`
+can now actually be resolved for new captures — chain
+`DREAMCAST_START_LEVEL` + `DREAMCAST_FORCE_FORK` +
+`DREAMCAST_EXIT_ON_STAGE_ADVANCE` across a rebuild-per-stage loop to record
+a real, deliberately-chosen A→A...A→E route end to end. Existing captures
+in `docs/route-matrix-results.md` still don't have verified route identity
+and would need redoing under this to get one.
+
+**Important:** the fork decision only applies to the active AI path.
+`config.engine.new_attract=1` (this project's default) selects
+`OAttractAI::tick_ai_enhanced()`, which picks its route randomly per stage
+via `sprite_ai_x` — `DREAMCAST_FORCE_FORK` overrides that pick directly.
+Don't try to force the fork via `oinitengine.cpp`'s `car_x_pos`/
+`route_selected` check instead — that was tried first and caused a
+hardware-confirmed visual bug (car drives off-road because its steering
+target and the loaded road data disagree). See the harness doc's
+`DREAMCAST_FORCE_FORK` section for the full explanation.
+
 The next stage-2 candidate (`DREAMCAST_START_LEVEL=0x09`) is also captured at
 `logs/route-matrix/stage-2-0x09-native320.log`; it exited cleanly, but its
 route identity is intentionally unassigned until fork choices are verified.

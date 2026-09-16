@@ -46,6 +46,22 @@ endif()
 set(DREAMCAST_START_LEVEL 0 CACHE STRING "Internal stage-lookup byte to start attract-mode gameplay at, for A/B perf testing of a specific stage without driving through earlier ones")
 add_definitions(-DDREAMCAST_START_LEVEL=${DREAMCAST_START_LEVEL})
 
+# Force the road-split fork direction instead of letting the AI's car
+# position decide -- for capturing a specific route deterministically.
+# 0 = natural (default), positive = force left, negative = force right.
+set(DREAMCAST_FORCE_FORK 0 CACHE STRING "Force road-split fork direction: 0=natural (AI decides), positive=force left, negative=force right")
+add_definitions(-DDREAMCAST_FORCE_FORK=${DREAMCAST_FORCE_FORK})
+
+# Exit automatically (same arch_exit() path as the /pc/exit_now sentinel)
+# the moment ostats.cur_stage advances past its value at game start -- i.e.
+# once the current stage's road split has actually been played through and
+# the next stage has begun. Lets a route-matrix capture stop precisely at
+# one stage's fork instead of an arbitrary frame/time budget.
+option(DREAMCAST_EXIT_ON_STAGE_ADVANCE "Auto-exit via arch_exit() once ostats.cur_stage advances past its start-of-run value" OFF)
+if(DREAMCAST_EXIT_ON_STAGE_ADVANCE)
+    add_definitions(-DDREAMCAST_EXIT_ON_STAGE_ADVANCE)
+endif()
+
 # Platform Specific Libraries
 set(platform_link_libs
 )
