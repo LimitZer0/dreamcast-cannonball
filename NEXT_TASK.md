@@ -5,11 +5,30 @@ The native-320x240 stage-1 rerun is documented in
 `logs/route-matrix/route-A-A-native320-rerun.log`. It exited cleanly; future
 matrix cells must use `tee` when launching `kos-tool`.
 
-All documented start bytes have now been attempted. Clean captures include
-`0x00`, `0x09`, `0x08`, `0x12`, `0x11`, `0x10`, `0x1B`, `0x19`, `0x18`,
-`0x24`, `0x22`, `0x21`, and `0x20`. Hardware crashes occurred at `0x1A` and
-`0x23`; their raw logs and stack locations are recorded in
-`docs/route-matrix-results.md`.
+14 of 15 `STAGE_LOOKUP` bytes have been attempted. Clean captures:
+`0x00`, `0x09`, `0x12`, `0x11`, `0x10`, `0x1B`, `0x19`, `0x18`, `0x24`,
+`0x22`, `0x21`, and `0x20`. Hardware crashes occurred at `0x1A` and `0x23`;
+their raw logs and stack locations are recorded in
+`docs/route-matrix-results.md`. **`0x08`** (the other stage-2 branch,
+alongside the already-captured `0x09`) **has never been attempted** — no log
+file exists for it; a prior version of this note incorrectly listed it as a
+clean capture.
+
+**This stage-byte batch is a different, narrower thing than the "record a
+complete run for every route" methodology described elsewhere in this
+file** (see "Data collection: route-coverage matrix" below) — don't treat it
+as having satisfied that task. Each of these 14 captures is a short (~60s,
+2 profiling-window) sample starting *fresh* at one isolated
+`DREAMCAST_START_LEVEL` byte via a cold boot, not a continuous playthrough
+of an entire 5-stage route from its actual start to its ending. None of them
+intentionally drive through a fork or an ending as captured content (the two
+crashes were unplanned kernel panics, not deliberate crash-sequence
+captures), and there is no whole-route or whole-game cumulative histogram
+spanning any of these runs — each capture only has its own since-boot
+cumulative counter over its ~60s lifetime. Useful as a coarse baseline
+("which hzoom values show up right at the start of each stage"), but the
+full-route, fork-to-ending capture methodology below is still an open,
+separate task.
 
 The next stage-2 candidate (`DREAMCAST_START_LEVEL=0x09`) is also captured at
 `logs/route-matrix/stage-2-0x09-native320.log`; it exited cleanly, but its
