@@ -358,8 +358,11 @@ played through and the next stage has begun. Lets a route-matrix capture
 stop precisely at one stage's fork instead of an arbitrary frame/time
 budget, and combined with `DREAMCAST_FORCE_FORK` makes a genuine
 "play through exactly this one fork in this one direction, then stop"
-capture possible — the actual "record a complete run through a fork"
-methodology the stage-byte sampling batch didn't satisfy.
+capture possible for a *single* stage. **Do not use this for a continuous
+multi-stage full-route capture** — it exits at the *first* stage transition
+it sees, so it's only useful for the single-stage isolated tests. See
+`DREAMCAST_FORCE_AI`/`DREAMCAST_SKIP_CREDITS` below for the (still
+unresolved) full-route attempt.
 
 ```bash
 cmake -DDREAMCAST_EXIT_ON_STAGE_ADVANCE=ON .
@@ -369,6 +372,102 @@ make
 Hardware-verified: fired cleanly (`"stage advanced 0 -> 1,
 stage_lookup_off=<n>, calling arch_exit()"`, `Program returned 0`) on every
 test run, natural and both forced directions.
+
+### Full multi-stage route capture: three separate blockers, two fixed
+
+Chaining `DREAMCAST_START_LEVEL` + `DREAMCAST_FORCE_FORK` (leave
+`DREAMCAST_EXIT_ON_STAGE_ADVANCE` off) to capture a *complete* route across
+multiple stages hit three independent problems:
+
+**1. A real crash, fixed.** `Render::supports_vsync()` — the class
+Dreamcast actually uses (`rendersurface.hpp`) — never overrode
+`RenderBase`'s default `return false;`, even though `rendersurface.cpp`
+already requests `SDL_RENDERER_PRESENTVSYNC` when creating the renderer.
+That made `main_loop()`'s `bool vsync = config.video.vsync == 1 &&
+video.supports_vsync();` (`main.cpp:303`) always evaluate `false` on
+Dreamcast regardless of config, so the app ran its own **redundant**
+`SDL_Delay`-based frame-pacing (`main.cpp:365`) on *every single frame of
+every session*, on top of hardware vsync. Two full-route attempts crashed
+at different points — `Data address error`, kernel panic, `Program
+returned 1` — both inside generic KOS primitives in the exact call chain
+this redundant delay hammers every frame:
+```
+~9 min:    DREAMCASTAUD_WaitDevice / SDL_RunAudio
+~12-13 min: thd_sleep / genwait_wait, via SDL_Delay / main_loop (main.cpp:365)
+```
+Neither crash was tied to any specific stage/scene content — both fired
+mid-ordinary-gameplay, consistent with a call-volume/duration-based bug
+rather than anything content-specific. Fixed:
+```cpp
+// rendersurface.hpp, class Render
+#ifdef __DREAMCAST__
+    bool supports_vsync() { return true; }
+#endif
+```
+Hardware-verified: a retry ran 16+ minutes clean, past both previous
+failure points. `spriteperf` data was essentially identical
+sample-for-sample to the pre-fix crashed run (same deterministic AI route,
+`shadow`/`rows` matching within normal variance) — **the fix does not
+change gameplay/CPU-side performance data, only removes the redundant
+delay.** The existing 14-stage-byte baseline predates this fix and does
+not need to be redone over it. Only `renderperf`/`drawperf`'s `update`/
+`draw` shifted slightly (`update` ~3ms -> ~5-7ms) because the vsync-wait
+moved from an unmeasured post-present delay into the measured
+`SDL_RenderPresent()` call itself — a measurement-attribution change, not
+a real workload change.
+
+**2. `GS_ATTRACT`'s bounded demo timer — a design limitation, no fix
+possible within attract mode.** `decrement_timers()` (`outrun.cpp`) resets
+the whole attract demo back to stage 1 after a fixed duration, regardless
+of whether a fork was ever reached. Hardware-confirmed: a from-cold-boot
+attract session (even after the crash fix above) never completed even
+stage 1 before recycling back to the start. `GS_ATTRACT` alone can
+therefore never host a full multi-stage route capture — this is separate
+from, and independent of, the crash in problem 1.
+
+**3. Real gameplay reaches further but isn't proven reliable yet.**
+`FORCE_AI` (`globals.hpp`) is a `const bool`, hardcoded `false`, that makes
+`OAttractAI::tick_ai_enhanced()` keep driving during real credited
+gameplay (`GS_INGAME`, `oferrari.cpp:319`) instead of only `GS_ATTRACT`.
+Real gameplay has no demo timeout. Wired to a new `DREAMCAST_FORCE_AI`
+cmake option:
+```cpp
+// globals.hpp
+#ifdef DREAMCAST_FORCE_AI
+const bool FORCE_AI = true;
+#else
+const bool FORCE_AI = false;
+#endif
+```
+To actually reach `GS_INGAME` without physical input, pair it with a new
+`DREAMCAST_SKIP_CREDITS` option — bypasses the credit/Start gate
+(`check_freeplay_start()` in `outrun.cpp`, `OMusic::check_start()` in
+`omusic.cpp`), the same mechanism that was deliberately reverted earlier
+this session (see `DREAMCAST_AUTOSTART` section above) for the *opposite*
+reason: back then we wanted to *stay* in attract mode; here we want to
+*skip past* it into unrestricted real gameplay.
+
+```bash
+cmake -DDREAMCAST_FORCE_AI=ON -DDREAMCAST_SKIP_CREDITS=ON .
+make
+```
+
+Hardware-verified this combination genuinely reaches `GS_INGAME` (visually
+confirmed: game played for a long time, ended at a real hi-score initials
+entry screen — which only appears after a genuine credited game session
+ends) with no crash and no attract-timeout. **But** the one test run
+collected a large amount of `spritezoom` data (877,996 rows in one hzoom
+bucket alone — far more than any bounded attract session ever collected)
+without the car ever crossing the first stage's fork (`"stage advanced"`
+never fired) — it most likely ran out of OutRun's real in-game clock before
+covering stage 1's distance, plausibly from repeated scenery collisions.
+`oattractai.cpp`'s own file header admits the AI is tuned to tolerate
+collisions for attract-mode demo purposes ("we want to demo a few
+collisions!"), not necessarily to reliably clear real gameplay's tighter
+time budget. Only tried once — could be one unlucky run (bad traffic RNG)
+rather than a systematic problem. **Not yet resolved** — a full
+continuous-route capture with verified fork identity still isn't possible
+until this is sorted out.
 
 ## Perf log field reference
 

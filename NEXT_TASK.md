@@ -29,19 +29,71 @@ cumulative counter over its ~60s lifetime. Useful as a coarse baseline
 full-route, fork-to-ending capture methodology below is still an open,
 separate task.
 
-**Update: the tooling blocker for full-route capture is now resolved.**
+**Update: partial progress on full-route capture — not resolved yet, three
+separate blockers found and two fixed.**
+
 `DREAMCAST_FORCE_FORK` (`oattractai.cpp`) and `DREAMCAST_EXIT_ON_STAGE_ADVANCE`
 (`main.cpp`) — see harness doc — let a capture deterministically choose
-left/right at each fork and stop exactly when the next stage begins,
-instead of an arbitrary time budget. Both hardware-verified clean in both
-directions (no off-road drift, correct `oroad.stage_lookup_off`). The
-"route identity: not assigned" caveat throughout `docs/route-matrix-results.md`
-can now actually be resolved for new captures — chain
-`DREAMCAST_START_LEVEL` + `DREAMCAST_FORCE_FORK` +
-`DREAMCAST_EXIT_ON_STAGE_ADVANCE` across a rebuild-per-stage loop to record
-a real, deliberately-chosen A→A...A→E route end to end. Existing captures
-in `docs/route-matrix-results.md` still don't have verified route identity
-and would need redoing under this to get one.
+left/right at each fork and stop exactly when the next stage begins.
+Hardware-verified clean in both directions for a *single* isolated stage
+(no off-road drift, correct `oroad.stage_lookup_off`). Attempting an actual
+continuous multi-stage full-route capture with these then hit two more,
+separate blockers:
+
+1. **A genuine crash, fixed.** `Render::supports_vsync()` (the class
+   Dreamcast actually uses) didn't override `RenderBase`'s default
+   (`false`), even though `rendersurface.cpp` already requests
+   `SDL_RENDERER_PRESENTVSYNC`. That made `main_loop()`'s `bool vsync`
+   always evaluate false on Dreamcast, so the app ran its own **redundant**
+   `SDL_Delay`-based frame-pacing on every single frame, on top of hardware
+   vsync. This is the likely trigger for a sustained-runtime crash
+   (`Data address error`, kernel panic) that hit twice in a row at
+   different points (~9 min via `DREAMCASTAUD_WaitDevice`/`SDL_RunAudio`,
+   ~12-13 min via `thd_sleep`/`genwait_wait`/`main_loop`) — both generic
+   KOS primitives hammered every frame for the session's lifetime, not
+   anything content-specific. Fixed by adding `bool supports_vsync() {
+   return true; }` to `Render` (`rendersurface.hpp`). Hardware-verified: a
+   full retry ran 16+ minutes clean, past both previous failure points,
+   with `spriteperf` data essentially identical sample-for-sample to the
+   pre-fix run (confirms the fix doesn't change gameplay/CPU-side
+   performance data, only removes the redundant delay) — **the existing
+   14-stage-byte baseline in `docs/route-matrix-results.md` does not need
+   to be redone over this fix.** Only `renderperf`/`drawperf` shifted
+   slightly (`update` ~3ms -> ~5-7ms), because the vsync-wait moved from an
+   unmeasured post-present delay into the measured `SDL_RenderPresent()`
+   call itself — a measurement-attribution change, not a real workload
+   change.
+2. **`GS_ATTRACT` has a bounded demo timer, not fixed (design limitation,
+   not a bug).** `decrement_timers()` (`outrun.cpp`) resets the whole
+   attract demo back to stage 1 after a fixed duration, regardless of
+   whether a fork was ever reached — confirmed on hardware: a from-cold-
+   boot attract session never completed even stage 1 before recycling.
+   This means `GS_ATTRACT` alone can never be used for a full multi-stage
+   route capture, independent of the crash above.
+3. **Real gameplay works but the AI may not reliably finish a stage in
+   time, unresolved.** `globals.hpp`'s `FORCE_AI` (wired to a new
+   `DREAMCAST_FORCE_AI` cmake option) keeps `OAttractAI::tick_ai_enhanced()`
+   driving during real credited gameplay (`GS_INGAME`), which has no demo
+   timeout. Paired with a new `DREAMCAST_SKIP_CREDITS` option (bypasses
+   `check_freeplay_start()`/`OMusic::check_start()`'s credit/Start gate,
+   same mechanism reverted earlier this session for the opposite reason).
+   Hardware-verified this combination genuinely reaches `GS_INGAME` and the
+   AI keeps driving with no crash and no attract-timeout — but the one test
+   run collected a large amount of `spritezoom` data (877,996 rows in one
+   bucket alone) without ever crossing the first fork (`"stage advanced"`
+   never fired), suggesting the AI ran out of real gameplay's in-game clock
+   before covering stage 1's distance — plausibly from repeated scenery
+   collisions (`oattractai.cpp`'s own header comment admits it's tuned to
+   tolerate collisions for attract-mode demo purposes, not necessarily to
+   reliably clear real gameplay's tighter time budget). Only tried once;
+   could be one unlucky run rather than systematic — not yet determined.
+
+The "route identity: not assigned" caveat throughout
+`docs/route-matrix-results.md` still cannot be resolved until item 3 above
+is sorted out — a full continuous capture needs the AI to reliably survive
+long enough to reach an actual ending. Existing captures in that file don't
+have verified route identity and would need redoing once a reliable
+full-route method exists.
 
 **Important:** the fork decision only applies to the active AI path.
 `config.engine.new_attract=1` (this project's default) selects

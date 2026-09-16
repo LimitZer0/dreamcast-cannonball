@@ -828,6 +828,9 @@ void Outrun::tick_attract()
 
 void Outrun::check_freeplay_start()
 {
+#ifdef DREAMCAST_SKIP_CREDITS
+    ostats.credits = 1;
+#else
     if (config.engine.freeplay)
     {
         if (!ostats.credits && input.has_pressed(Input::START))
@@ -835,6 +838,7 @@ void Outrun::check_freeplay_start()
             ostats.credits = 1;
         }
     }
+#endif
 }
 
 // -------------------------------------------------------------------------------

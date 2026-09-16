@@ -205,7 +205,12 @@ void OMusic::setup_sprite5()
 // Source: 0xB768
 void OMusic::check_start()
 {
-    if (ostats.credits && input.has_pressed(Input::START))
+#ifdef DREAMCAST_SKIP_CREDITS
+    const bool start_pressed = true;
+#else
+    const bool start_pressed = input.has_pressed(Input::START);
+#endif
+    if (ostats.credits && start_pressed)
     {
         outrun.game_state = GS_INIT_GAME;
         ologo.disable();

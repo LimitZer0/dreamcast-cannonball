@@ -16,7 +16,15 @@
 const bool DEBUG_LEVEL = false;
 
 // Force AI to play the levels
+// Set via the Dreamcast build's DREAMCAST_FORCE_AI cmake option so AI
+// driving continues into real credited gameplay (GS_INGAME), which has no
+// demo timeout, instead of being confined to GS_ATTRACT's bounded demo
+// cycle -- needed for full-route captures spanning multiple stages.
+#ifdef DREAMCAST_FORCE_AI
+const bool FORCE_AI = true;
+#else
 const bool FORCE_AI = false;
+#endif
 
 // ------------------------------------------------------------------------------------------------
 // General useful stuff

@@ -19,11 +19,21 @@ class Render : public RenderBase
 public:
     Render();
     ~Render();
-    bool init(int src_width, int src_height, 
+    bool init(int src_width, int src_height,
               int scale,
               int video_mode,
               int scanlines);
     void disable();
+#ifdef __DREAMCAST__
+    // SDL_RENDERER_PRESENTVSYNC is already requested for the Dreamcast PVR
+    // renderer (see init()); without this override, RenderBase's default
+    // (false) makes main_loop() also run its own redundant SDL_Delay-based
+    // frame pacing on every single frame regardless of config.video.vsync,
+    // which is the likely trigger for a sustained-runtime crash in the
+    // SDL_Delay -> thd_sleep -> genwait_wait call chain (Data address
+    // error after ~9-13 minutes of continuous play, hardware-confirmed).
+    bool supports_vsync() { return true; }
+#endif
     bool start_frame();
     bool finalize_frame();
     void draw_frame(uint16_t* pixels);

@@ -62,6 +62,26 @@ if(DREAMCAST_EXIT_ON_STAGE_ADVANCE)
     add_definitions(-DDREAMCAST_EXIT_ON_STAGE_ADVANCE)
 endif()
 
+# GS_ATTRACT has a bounded demo timer (decrement_timers() in outrun.cpp)
+# that resets the whole demo back to stage 1 regardless of whether a fork
+# was reached -- confirmed on hardware to fire before a full stage-1
+# traversal can complete. Real credited gameplay (GS_INGAME) has no such
+# timeout. DREAMCAST_FORCE_AI keeps the AI driving once there (globals.hpp)
+# instead of handing control to a real controller; DREAMCAST_SKIP_CREDITS
+# bypasses the credit/Start-button gate (check_freeplay_start()/
+# OMusic::check_start()) so a capture reaches GS_INGAME without physical
+# input, same rationale as DREAMCAST_AUTOSTART but one gate further in --
+# use both together for unattended full-route captures.
+option(DREAMCAST_FORCE_AI "Keep the AI driving during real credited gameplay (GS_INGAME), not just GS_ATTRACT's timeout-limited demo" OFF)
+if(DREAMCAST_FORCE_AI)
+    add_definitions(-DDREAMCAST_FORCE_AI)
+endif()
+
+option(DREAMCAST_SKIP_CREDITS "Bypass the arcade credit/Start-button gate so boot reaches real gameplay (GS_INGAME) without physical input" OFF)
+if(DREAMCAST_SKIP_CREDITS)
+    add_definitions(-DDREAMCAST_SKIP_CREDITS)
+endif()
+
 # Platform Specific Libraries
 set(platform_link_libs
 )
