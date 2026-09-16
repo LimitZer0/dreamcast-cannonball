@@ -9,6 +9,7 @@
 ***************************************************************************/
 
 #include <iostream>
+#include <cstring>
 
 #include "rendersurface.hpp"
 #include "frontend/config.hpp"
@@ -22,6 +23,20 @@
 #define DC_RENDER_PERF_INTERVAL_MS 5000
 #else
 #define DC_RENDER_TRACE(...) do {} while (0)
+#endif
+
+#ifdef __DREAMCAST__
+static int find_pvr_renderer()
+{
+    SDL_RendererInfo info;
+    for (int i = 0; i < SDL_GetNumRenderDrivers(); ++i)
+    {
+        if (SDL_GetRenderDriverInfo(i, &info) == 0 &&
+            info.name && std::strcmp(info.name, "Dreamcast PVR") == 0)
+            return i;
+    }
+    return -1;
+}
 #endif
 
 Render::Render(void)
@@ -180,7 +195,7 @@ bool Render::init(int src_width, int src_height,
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, config.video.filtering ? "linear" : "nearest");
 #ifdef __DREAMCAST__
 
-    DC_RENDER_TRACE("cannonball: Dreamcast textured framebuffer layout src=%dx%d screen=%dx%d dst=%d,%d %dx%d mode=%d\n",
+    DC_RENDER_TRACE("cannonball: Dreamcast render layout src=%dx%d screen=%dx%d dst=%d,%d %dx%d mode=%d\n",
                     src_width, src_height, scn_width, scn_height,
                     dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h, video_mode);
 #endif
@@ -197,8 +212,18 @@ bool Render::init(int src_width, int src_height,
 #ifdef __DREAMCAST__
     SDL_ShowCursor(false);
     window_surface = NULL;
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    const int renderer_driver = find_pvr_renderer();
+    if (renderer_driver < 0)
+    {
+        std::cerr << "Dreamcast PVR renderer not found" << std::endl;
+        DC_RENDER_TRACE("cannonball: Dreamcast PVR renderer not found\n");
+        SDL_DestroyWindow(window);
+        window = NULL;
+        return false;
+    }
+    renderer = SDL_CreateRenderer(window, renderer_driver,
+                                  SDL_RENDERER_ACCELERATED |
+                                  SDL_RENDERER_PRESENTVSYNC);
     if (!renderer)
     {
         std::cerr << "Renderer creation failed: " << SDL_GetError() << std::endl;
@@ -208,8 +233,9 @@ bool Render::init(int src_width, int src_height,
         return false;
     }
     {
-        SDL_RendererInfo renderer_info;
-        if (SDL_GetRendererInfo(renderer, &renderer_info) == 0)
+        SDL_RendererInfo renderer_info = {};
+        const bool renderer_info_ok = SDL_GetRendererInfo(renderer, &renderer_info) == 0;
+        if (renderer_info_ok)
         {
             DC_RENDER_TRACE("cannonball: renderer=%p name=%s flags=0x%lx\n",
                             (void*)renderer,
@@ -221,6 +247,20 @@ bool Render::init(int src_width, int src_height,
             DC_RENDER_TRACE("cannonball: renderer=%p SDL_GetRendererInfo failed: %s\n",
                             (void*)renderer,
                             SDL_GetError());
+        }
+        if (!renderer_info_ok ||
+            !renderer_info.name ||
+            std::strcmp(renderer_info.name, "Dreamcast PVR") != 0)
+        {
+            DC_RENDER_TRACE("cannonball: unexpected Dreamcast renderer: %s\n",
+                            renderer_info.name ? renderer_info.name : "(null)");
+            std::cerr << "Unexpected Dreamcast renderer: "
+                      << (renderer_info.name ? renderer_info.name : "(null)") << std::endl;
+            SDL_DestroyRenderer(renderer);
+            SDL_DestroyWindow(window);
+            renderer = NULL;
+            window = NULL;
+            return false;
         }
     }
 DC_RENDER_TRACE("cannonball: creating texture %dx%d surface=%dx%d src=%dx%d dst=%dx%d\n",
@@ -269,7 +309,6 @@ Uint32 fmt;
                     surface->pitch,
                     SDL_GetPixelFormatName(surface->format->format));
 #else
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");
     renderer = SDL_CreateRenderer(window, 1, SDL_RENDERER_PRESENTVSYNC);
     if (!renderer)
     {

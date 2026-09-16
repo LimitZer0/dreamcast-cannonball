@@ -34,6 +34,20 @@ lets Outrun's own `GS_ATTRACT` AI-driving loop run indefinitely with zero
 input, which combined with `DREAMCAST_START_LEVEL` can target a specific
 stage's traffic/road pattern directly instead of always starting at stage 1.
 
+The `/pc/exit_now` sentinel-file remote-exit hook (`main.cpp`'s `tick()`,
+see harness doc) makes the full A→A...A→E matrix hands-off end-to-end:
+launch, collect, `touch build-dc/cd/exit_now` to end that route's run
+cleanly, rebuild for the next `DREAMCAST_START_LEVEL`, repeat — no physical
+controller input needed between routes.
+
+There's a known intermittent crash-on-exit (see harness doc's
+`DREAMCAST_AUTOSTART` section) that has at least once required a full
+physical reboot + manual dc-load reload from the GD-emu menu — a real cost
+if it fires mid-matrix-collection. The sentinel-file exit path has tested
+clean so far (preferred over the controller chord/menu Exit for unattended
+runs), but the crash isn't fully root-caused — worth a heads-up check
+between routes rather than assuming every run in the matrix completed.
+
 ## Rendering backend correction
 
 `DREAMCAST_OPTIMIZATION_NOTES.md` (pre-existing, predates this session)

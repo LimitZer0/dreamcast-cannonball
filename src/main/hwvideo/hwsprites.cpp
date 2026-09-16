@@ -8,6 +8,10 @@
 #include <SDL.h>
 #include <cstring>
 #define DC_SPRITE_PERF_INTERVAL_MS 30000
+#ifdef DREAMCAST_SPRITE_ZOOM_PROFILE
+static const uint16_t DC_HZOOM_VALUES = 0x800;
+static const uint8_t DC_HZOOM_TOP_VALUES = 12;
+#endif
 #endif
 
 /***************************************************************************
@@ -424,6 +428,11 @@ void hwsprites::render(const uint8_t priority)
     static uint32_t perf_rows = 0;
     static uint32_t perf_rows_1x = 0;
     static uint32_t perf_fullclip_sprites = 0;
+#ifdef DREAMCAST_SPRITE_ZOOM_PROFILE
+    static uint32_t perf_hzoom_rows[DC_HZOOM_VALUES] = { 0 };
+    static uint32_t cumulative_hzoom_rows[DC_HZOOM_VALUES] = { 0 };
+    static uint32_t cumulative_rows = 0;
+#endif
     uint32_t frame_sprites = 0;
     uint32_t frame_shadow_sprites = 0;
     uint32_t frame_rows = 0;
@@ -524,6 +533,11 @@ void hwsprites::render(const uint8_t priority)
                 frame_rows++;
                 if (hzoom == 0x200)
                     frame_rows_1x++;
+#ifdef DREAMCAST_SPRITE_ZOOM_PROFILE
+                perf_hzoom_rows[hzoom]++;
+                cumulative_hzoom_rows[hzoom]++;
+                cumulative_rows++;
+#endif
 #endif
 
                 // non-flipped case
@@ -907,6 +921,52 @@ void hwsprites::render(const uint8_t priority)
                (unsigned long)(perf_fullclip_sprites / perf_frames),
                (unsigned long)(perf_rows / perf_frames),
                (unsigned long)(perf_rows_1x / perf_frames));
+#ifdef DREAMCAST_SPRITE_ZOOM_PROFILE
+        dbglog(DBG_INFO, "cannonball: spritezoom cumulative rows=%lu\n",
+               (unsigned long)cumulative_rows);
+
+        bool reported[DC_HZOOM_VALUES] = { false };
+        for (uint8_t rank = 0; rank < DC_HZOOM_TOP_VALUES; rank++)
+        {
+            uint16_t best = 0;
+            for (uint16_t value = 0; value < DC_HZOOM_VALUES; value++)
+            {
+                if (!reported[value] && perf_hzoom_rows[value] > perf_hzoom_rows[best])
+                    best = value;
+            }
+            if (perf_hzoom_rows[best] == 0)
+                break;
+
+            reported[best] = true;
+            dbglog(DBG_INFO,
+                   "cannonball: spritezoom rank=%u hzoom=0x%03x rows=%lu cumulative=%lu\n",
+                   (unsigned)rank + 1,
+                   best,
+                   (unsigned long)perf_hzoom_rows[best],
+                   (unsigned long)cumulative_hzoom_rows[best]);
+        }
+
+        bool cumulative_reported[DC_HZOOM_VALUES] = { false };
+        for (uint8_t rank = 0; rank < DC_HZOOM_TOP_VALUES; rank++)
+        {
+            uint16_t best = 0;
+            for (uint16_t value = 0; value < DC_HZOOM_VALUES; value++)
+            {
+                if (!cumulative_reported[value] &&
+                    cumulative_hzoom_rows[value] > cumulative_hzoom_rows[best])
+                    best = value;
+            }
+            if (cumulative_hzoom_rows[best] == 0)
+                break;
+
+            cumulative_reported[best] = true;
+            dbglog(DBG_INFO,
+                   "cannonball: spritezoom cumulative-rank=%u hzoom=0x%03x rows=%lu\n",
+                   (unsigned)rank + 1,
+                   best,
+                   (unsigned long)cumulative_hzoom_rows[best]);
+        }
+#endif
         perf_last = perf_now;
         perf_frames = 0;
         perf_sprites = 0;
@@ -914,6 +974,9 @@ void hwsprites::render(const uint8_t priority)
         perf_rows = 0;
         perf_rows_1x = 0;
         perf_fullclip_sprites = 0;
+#ifdef DREAMCAST_SPRITE_ZOOM_PROFILE
+        std::memset(perf_hzoom_rows, 0, sizeof(perf_hzoom_rows));
+#endif
     }
 #endif
 }

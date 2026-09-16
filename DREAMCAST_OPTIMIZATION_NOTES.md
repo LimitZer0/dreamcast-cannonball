@@ -9,7 +9,6 @@ Add Dreamcast SDL2/GLdc port fixes and sprite performance diagnostics
 - Add Dreamcast config fallback and startup/runtime logging
 - Keep Dreamcast app logic on a larger KOS thread stack
 - Add Dreamcast controller exit callback and joystick/controller event logging
-- Use split POT SDL textures for the 320x224 framebuffer
 - Add Dreamcast video/render/audio/sprite performance logging
 - Add Dreamcast-only sprite renderer branch splits and test options
 - Add optional Dreamcast sprite shadow skip path for profiling

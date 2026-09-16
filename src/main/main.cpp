@@ -5,6 +5,7 @@
     See license.txt for more details.
 ***************************************************************************/
 
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 
@@ -178,6 +179,25 @@ static void tick()
         tick_frame = frame & 1;
     else if (config.fps == 120)
         tick_frame = (frame & 3) == 1;
+
+#ifdef __DREAMCAST__
+    // Remote-exit hook for unattended hardware testing: kos-tool's -m maps
+    // /pc/ to a real host directory (the same passthrough Config::load()
+    // already uses for /pc/config.xml). Touching build-dc/cd/exit_now on
+    // the host ends a running session without physical controller input --
+    // no host-to-target dc-load command channel exists otherwise. Checked
+    // every 30 frames, not every frame, to keep this off the hot path.
+    if ((frame % 30) == 0)
+    {
+        FILE* dc_exit_sentinel = fopen("/pc/exit_now", "rb");
+        if (dc_exit_sentinel)
+        {
+            fclose(dc_exit_sentinel);
+            DC_TRACE("cannonball: /pc/exit_now detected, calling arch_exit()\n");
+            arch_exit();
+        }
+    }
+#endif
 
     process_events();
 

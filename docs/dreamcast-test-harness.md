@@ -130,6 +130,43 @@ then `tail -f /tmp/run.log` or grep it on demand. Check `ps aux | grep
 kos-tool` before assuming it's still running — it exits itself on menu Exit
 or crash, same as the foreground case.
 
+### Remote exit (no physical input needed)
+
+There's no host-to-target command channel in this dc-load setup —
+`dcload_read()`/`dc/dcload.h` is the dc-load *filesystem* proxy (reads a
+file previously opened via `dcload_open()`), not a live stdin/keypress
+stream, and a second `kos-tool -r` (reset) connection while a session is
+already running fails (`No network loader response` — one connection per
+session, same limit GDB hits). So a running session normally needs physical
+input to end: the in-game menu's Exit option, or the controller
+all-buttons exit chord.
+
+Instead, `main.cpp`'s `tick()` polls for a sentinel file every 30 frames:
+`fopen("/pc/exit_now", "rb")`. `kos-tool -m cd/` maps `/pc/` straight to
+`build-dc/cd/` on the host — the same passthrough `Config::load()` already
+uses for its `/pc/config.xml` fallback — so touching
+`build-dc/cd/exit_now` from the host ends a running session on demand:
+
+```bash
+touch build-dc/cd/exit_now
+# ... game detects it within ~30 frames, calls arch_exit(), kos-tool exits on its own ...
+rm -f build-dc/cd/exit_now   # clean up before the next launch
+```
+
+Hardware-verified: detected the sentinel, logged
+`"cannonball: /pc/exit_now detected, calling arch_exit()"`, went through the
+same `"vid_set_mode: 640x480 VGA"` line every other exit path shows (that's
+normal `arch_exit()` teardown, not a crash precursor — see below), then
+`Program returned 0` and back at the dc-load prompt cleanly. No reboot, no
+manual GD-emu menu reload. This is what makes the route-coverage matrix in
+`NEXT_TASK.md` (A→A through A→E) actually hands-off: launch at a given
+`DREAMCAST_START_LEVEL`, let it collect samples, touch the sentinel, rebuild
+for the next route, repeat — no physical chord-pressing between runs.
+
+**Important:** always `rm -f` the sentinel file after use. If it's left
+sitting in `build-dc/cd/`, the *next* launch will detect it and exit almost
+immediately.
+
 ## Two different "state" traces — don't conflate them
 
 The `"cannonball: state %d -> %d frame=%d"` log line (`main.cpp:172`) is
@@ -201,13 +238,31 @@ cannonball: state 3 -> 4 frame=5    <- STATE_INIT_GAME -> STATE_GAME
 Reaches `STATE_GAME` in ~5 frames with zero input, then Outrun's own
 `GS_ATTRACT` loop takes over and drives indefinitely on its own.
 
-**Known issue found via this path:** running autostart long enough has hit
-a crash (`Program returned 1`, empty stack trace) right after a mid-run
-`"INFO: Double Buffer video enabled" / "vid_set_mode: 640x480 VGA"` pair —
-some code path re-runs SDL/PVR window setup a second time, likely during
-the `GS_ATTRACT` -> `GS_BEST1`/`GS_INIT_LOGO` transition. Console recovered
-cleanly (`kos-tool` got control back on its own) — not a hang — but this is
-an open, reproducible-via-autostart bug, not yet root-caused.
+**Known issue:** running autostart long enough has occasionally hit a crash
+(`Program returned 1`) tied to exiting the session, not random mid-play
+instability. Two observed signatures so far:
+- Empty stack trace, right after a mid-run `"INFO: Double Buffer video
+  enabled" / "vid_set_mode: 640x480 VGA"` pair. **Note this line by itself
+  is not the problem** — it also appears on the clean sentinel-file
+  `arch_exit()` path documented above, which returns to dc-load fine. So
+  this signature is something going wrong *around* a video-mode-reset that
+  normally succeeds, not the reset itself.
+- A real stack trace: `*** ASSERTION FAILURE *** Assertion
+  "sm->initialized == 1" failed at sem.c:56 in sem_wait_timed`, inside
+  `pvr_txr_load_dma` -> `DC_PVR_UpdateTexture` -> `SDL_UpdateTexture` ->
+  `Render::finalize_frame()` (`rendersurface.cpp:380`) -> `arch: aborting
+  the system`. A PVR texture-DMA completion semaphore gets waited on after
+  it's no longer initialized.
+
+**Impact varies** — sometimes `kos-tool` gets control back on its own
+(console fine, no hang), but at least once this required a full physical
+reboot and manually reloading dc-load from the GD-emu menu, which is a real
+cost for unattended testing. The `/pc/exit_now` -> `arch_exit()` path above
+has tested clean on hardware (no crash, no reboot), so prefer that over the
+controller exit chord or the in-game menu's Exit option for now when doing
+unattended runs, until this is root-caused. Not yet understood: whether the
+crash is specific to one exit path (chord vs. menu Exit vs. something else)
+or an intermittent race that any exit path can occasionally hit.
 
 ### `DREAMCAST_START_LEVEL` (cmake option, default `0` = stage 1)
 

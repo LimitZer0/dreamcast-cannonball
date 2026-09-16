@@ -175,21 +175,23 @@
         <view>304</view>
     </keyconfig>
     
-    <!-- Gamepad / Joystick Button Configuration. Easiest to configure with inbuilt menu. 
-         Set these values to '-1' to attempt auto-detection/auto-assignment -->
+    <!-- Gamepad / Joystick Button Configuration. Easiest to configure with inbuilt menu.
+         Dreamcast SDL_GameController defaults:
+         A=0, B=1, X=2, Y=3, START=6, DPAD_UP=11, DPAD_DOWN=12, DPAD_LEFT=13, DPAD_RIGHT=14.
+         Coin and menu are unassigned on the stock Dreamcast controller; freeplay is enabled below. -->
     <padconfig>
-        <acc>-1</acc>
-        <brake>-1</brake>
-        <gear1>-1</gear1>
+        <acc>0</acc>
+        <brake>1</brake>
+        <gear1>2</gear1>
         <gear2>-1</gear2>
-        <start>-1</start>
+        <start>6</start>
         <coin>-1</coin>
         <menu>-1</menu>
-        <view>-1</view>
-        <up>-1</up>
-        <down>-1</down>
-        <left>-1</left>
-        <right>-1</right>
+        <view>3</view>
+        <up>11</up>
+        <down>12</down>
+        <left>13</left>
+        <right>14</right>
     </padconfig>
     
     <!-- Digital Controls: Steering Adjust Speed (1 to 9) -->
@@ -208,9 +210,9 @@
              Set invert to "1" when off and on and reversed (shouldn't be needed on gamepads).
           -->
 		<axis>
-			<wheel>-1</wheel>
-			<accel invert="0">-1</accel>
-			<brake invert="0">-1</brake>
+			<wheel>0</wheel>
+			<accel invert="0">5</accel>
+			<brake invert="0">4</brake>
 		</axis>
         
         <!-- Analog Wheel Settings -->
