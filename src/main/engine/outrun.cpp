@@ -31,6 +31,13 @@
 #include "engine/otraffic.hpp"
 #include "engine/outils.hpp"
 
+// Internal stage-lookup byte to start attract-mode gameplay at (see
+// STAGE_LOOKUP in frontend/ttrial.cpp); set via the Dreamcast build's
+// DREAMCAST_START_LEVEL cmake option, 0 (stage 1) elsewhere.
+#ifndef DREAMCAST_START_LEVEL
+#define DREAMCAST_START_LEVEL 0
+#endif
+
 #ifdef __DREAMCAST__
 #include <kos/dbglog.h>
 #define DC_OUTRUN_TRACE(...) do {} while (0)
@@ -117,7 +124,7 @@ void Outrun::boot()
     DC_OUTRUN_TRACE("cannonball: Outrun::boot init_jump_table begin\n");
     init_jump_table();
     DC_OUTRUN_TRACE("cannonball: Outrun::boot oinitengine.init begin\n");
-    oinitengine.init(cannonball_mode == MODE_TTRIAL ? ttrial.level : 0);
+    oinitengine.init(cannonball_mode == MODE_TTRIAL ? ttrial.level : DREAMCAST_START_LEVEL);
     DC_OUTRUN_TRACE("cannonball: Outrun::boot osoundint.init begin\n");
     osoundint.init();
     DC_OUTRUN_TRACE("cannonball: Outrun::boot reset_random_seed begin\n");
@@ -413,7 +420,7 @@ void Outrun::main_switch()
             video.clear_text_ram();
             oferrari.car_ctrl_active = true;
             init_jump_table();
-            oinitengine.init(cannonball_mode == MODE_TTRIAL ? ttrial.level : 0);
+            oinitengine.init(cannonball_mode == MODE_TTRIAL ? ttrial.level : DREAMCAST_START_LEVEL);
             // Timing Hack to ensure horizon is correct
             // Note that the original code disables the screen, and waits for the second CPU's interrupt instead
             oroad.tick();
@@ -593,7 +600,7 @@ void Outrun::main_switch()
                 //ROM:0000B700                 bclr    #5,(ppi1_value).l                   ; Turn screen off (not activated until PPI written to)
                 oferrari.car_ctrl_active = true; // 0 : Allow road updates
                 init_jump_table();
-                oinitengine.init(cannonball_mode == MODE_TTRIAL ? ttrial.level : 0);
+                oinitengine.init(cannonball_mode == MODE_TTRIAL ? ttrial.level : DREAMCAST_START_LEVEL);
                 //ROM:0000B716                 bclr    #0,(byte_260550).l
                 game_state = GS_REINIT;          // Reinit game to attract mode
             }

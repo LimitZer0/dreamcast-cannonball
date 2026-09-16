@@ -326,6 +326,16 @@ void Menu::tick_ui()
 
     if (state == STATE_MENU)
     {
+#ifdef DREAMCAST_AUTOSTART
+        // Let a couple of real menu frames tick first (mirrors the timing of an
+        // actual button press) instead of chaining straight off menu->init()
+        // in the same frame as STATE_INIT_MENU, which hung the console.
+        if (frame == 2)
+        {
+            start_game(Outrun::MODE_ORIGINAL);
+            return;
+        }
+#endif
         tick_menu();
         draw_menu_options();
     }

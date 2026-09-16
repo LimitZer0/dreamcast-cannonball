@@ -3,6 +3,12 @@
 #include "globals.hpp"
 #include "frontend/config.hpp"
 
+#ifdef __DREAMCAST__
+#include <kos/dbglog.h>
+#include <SDL.h>
+#define DC_ROAD_PERF_INTERVAL_MS 30000
+#endif
+
 /***************************************************************************
     Video Emulation: OutRun Road Rendering Hardware.
     Based on MAME source code.
@@ -292,8 +298,18 @@ void HWRoad::render_foreground_lores(uint16_t* pixels)
 {
     int x, y;
     uint16_t* roadram = ramBuff;
-    
-    for (y = 0; y < S16_HEIGHT; y++) 
+
+#ifdef __DREAMCAST__
+    static uint32_t perf_last = SDL_GetTicks();
+    static int perf_frames = 0;
+    static uint32_t perf_rows_skipped = 0;
+    static uint32_t perf_rows_drawn = 0;
+    uint32_t frame_rows_skipped = 0;
+    uint32_t frame_rows_drawn = 0;
+    const int32_t perf_control = road_control & 3; // constant for the whole call
+#endif
+
+    for (y = 0; y < S16_HEIGHT; y++)
     {
         uint16_t color_table[32];
 
@@ -308,7 +324,12 @@ void HWRoad::render_foreground_lores(uint16_t* pixels)
 
         // if both roads are low priority, skip
         if (((data0 & 0x800) != 0) && ((data1 & 0x800) != 0))
+        {
+#ifdef __DREAMCAST__
+            frame_rows_skipped++;
+#endif
             continue;
+        }
 
         uint16_t* pPixel = pixels + (y * config.s16_width);
         int32_t hpos0, hpos1, color0, color1;
@@ -407,7 +428,36 @@ void HWRoad::render_foreground_lores(uint16_t* pixels)
                 }
                 break;
             } // end switch
+#ifdef __DREAMCAST__
+        frame_rows_drawn++;
+#endif
     } // end for
+
+#ifdef __DREAMCAST__
+    perf_rows_skipped += frame_rows_skipped;
+    perf_rows_drawn += frame_rows_drawn;
+    perf_frames++;
+
+    const uint32_t perf_now = SDL_GetTicks();
+    if (perf_now - perf_last >= DC_ROAD_PERF_INTERVAL_MS)
+    {
+        const uint32_t perf_elapsed = perf_now - perf_last;
+        const uint32_t perf_fps = (perf_frames * 1000) / perf_elapsed;
+        // Note: rows_drawn + rows_skipped may be < S16_HEIGHT — control 0/3's
+        // single-road-hidden `continue` counts as neither (rare in practice).
+        dbglog(DBG_INFO,
+               "cannonball: roadperf fps=%lu control=%ld rows_drawn=%lu rows_skipped=%lu\n",
+               (unsigned long)perf_fps,
+               (long)perf_control,
+               (unsigned long)(perf_rows_drawn / perf_frames),
+               (unsigned long)(perf_rows_skipped / perf_frames));
+
+        perf_last = perf_now;
+        perf_frames = 0;
+        perf_rows_drawn = 0;
+        perf_rows_skipped = 0;
+    }
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
