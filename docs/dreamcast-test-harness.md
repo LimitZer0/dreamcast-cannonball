@@ -150,8 +150,14 @@ uses for its `/pc/config.xml` fallback — so touching
 ```bash
 touch build-dc/cd/exit_now
 # ... game detects it within ~30 frames, calls arch_exit(), kos-tool exits on its own ...
-rm -f build-dc/cd/exit_now   # clean up before the next launch
+# Wait for "Program returned 0" and the dcload prompt before uploading again.
+rm -f build-dc/cd/exit_now   # remove it before the next launch
 ```
+
+For every matrix cell, use this handoff order: touch `exit_now`, wait for
+`kos-tool` to return to dcload, remove `build-dc/cd/exit_now`, then upload the
+next ELF. Removing the sentinel before the next upload is mandatory; otherwise
+the new run will detect it and exit almost immediately.
 
 Hardware-verified: detected the sentinel, logged
 `"cannonball: /pc/exit_now detected, calling arch_exit()"`, went through the
@@ -163,9 +169,9 @@ manual GD-emu menu reload. This is what makes the route-coverage matrix in
 `DREAMCAST_START_LEVEL`, let it collect samples, touch the sentinel, rebuild
 for the next route, repeat — no physical chord-pressing between runs.
 
-**Important:** always `rm -f` the sentinel file after use. If it's left
-sitting in `build-dc/cd/`, the *next* launch will detect it and exit almost
-immediately.
+**Important:** always wait for the dcload prompt before removing the sentinel,
+then verify it is gone before the next upload. If it is left sitting in
+`build-dc/cd/`, the next launch will detect it and exit almost immediately.
 
 ## Two different "state" traces — don't conflate them
 
@@ -378,9 +384,11 @@ surrounding the `videoperf` breakdown — useful as a sanity check that
 ```
 cannonball: perf fps=<n> avg_ms total=<n> tick=<n> prep=<n> render=<n> audio=<n> state=<n> target_fps=<n>
 ```
-Whole-loop breakdown; `state` is the current `game_state` enum value (see
-state numbering above) — useful to confirm which phase (attract vs. in-game)
-a given perf sample came from.
+Whole-loop breakdown; `state` here is `cannonball::state` (see "Two
+different 'state' traces" above — `STATE_GAME=4`, etc.), **not**
+`Outrun::game_state`. In practice this only tells you whether you're in the
+frontend menu or `STATE_GAME`; it can't distinguish `GS_ATTRACT` from real
+`GS_INGAME` play, since both happen inside `STATE_GAME`.
 
 ## Pre-flight checklist
 
@@ -393,6 +401,9 @@ a given perf sample came from.
 - [ ] If testing fresh-VMU behavior specifically: `CANNON` deleted from the
       physical VMU first (BIOS file manager) — no local VMU image substitutes
       for this on hardware runs
-- [ ] After testing: choose Exit from the in-game menu for a clean shutdown;
-      confirm `Program returned 0` and no leftover `kos-tool` process before
-      launching the next run
+- [ ] After testing: prefer `touch build-dc/cd/exit_now` (see Remote exit
+      above) over the in-game menu's Exit or the controller chord for
+      unattended runs — it's the one exit path that's tested clean of the
+      intermittent crash-on-exit so far. Either way, confirm
+      `Program returned 0` and no leftover `kos-tool` process before
+      launching the next run, and remove the sentinel file if you used it

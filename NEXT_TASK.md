@@ -1,5 +1,10 @@
 # Next Task: Sprite Horizontal-Zoom Lookup Table
 
+The first stage-1 baseline capture is documented in
+`docs/route-matrix-results.md`. The successful session exited cleanly, but its
+raw output was not persisted; future matrix cells must use `tee` when
+launching `kos-tool`.
+
 Continues `DREAMCAST_OPTIMIZATION_NOTES.md` next step #3 ("Consider
 lookup/table or span-based rendering for common hzoom values to avoid
 per-output-pixel xacc loops"). A separate session already started a baseline
@@ -37,8 +42,47 @@ stage's traffic/road pattern directly instead of always starting at stage 1.
 The `/pc/exit_now` sentinel-file remote-exit hook (`main.cpp`'s `tick()`,
 see harness doc) makes the full A→A...A→E matrix hands-off end-to-end:
 launch, collect, `touch build-dc/cd/exit_now` to end that route's run
-cleanly, rebuild for the next `DREAMCAST_START_LEVEL`, repeat — no physical
-controller input needed between routes.
+cleanly, wait for `Program returned 0` / the dcload prompt, remove
+`build-dc/cd/exit_now`, rebuild for the next `DREAMCAST_START_LEVEL`, and
+upload again — no physical controller input needed between routes. The
+sentinel must be removed before the next upload or that run exits immediately.
+
+### First A→A capture (`docs/route-matrix-results.md`) — needs a rerun
+
+A first stage-1/`DREAMCAST_START_LEVEL=0` capture exists at
+`docs/route-matrix-results.md`, but it shouldn't be trusted as the "A→A"
+baseline yet — two open problems, not just the missing raw log the results
+doc already flags:
+
+1. **No durable raw log.** The only record is summary numbers transcribed
+   from an interactive `kos-tool` session — not independently verifiable,
+   not reprocessable for additional stats. Any rerun must pipe through
+   `tee` from the start: `kos-tool -t 192.168.0.128 -x cannonball.elf -m cd/
+   2>&1 | tee /tmp/cannonball-route-<cell>.log`, then copy the log
+   somewhere durable once the run's confirmed good.
+2. **The "A→A" label was never actually verified.** Which fork gets taken
+   at each stage split depends on `car_x_pos > 0` at that checkpoint
+   (`oinitengine.cpp:627-663`) — i.e. which side of the road the car is
+   steered to, driven by `oattractai.cpp`'s AI logic during attract mode,
+   not a hardcoded route index. Nothing in the existing capture confirms
+   which fork the AI actually took at each split (would need cross-
+   referencing `ostats.cur_stage`/state transitions against the log
+   timeline). "A→A" there is an assumed label from "started at
+   `DREAMCAST_START_LEVEL=0`," not something confirmed from the run's
+   actual path through the branch tree. Before trusting any route label in
+   the matrix, confirm the AI's fork choices are actually deterministic
+   run-to-run (same build, same settings, same route every time) — if
+   they're not, the whole A-E labeling scheme needs a different way to
+   pin down which route was taken, not just which stage it started at.
+
+Also missing from that capture, per this file's own methodology above:
+graphics settings (resolution/widescreen/scale/hires) used for the run
+weren't recorded, and it should be noted explicitly whether
+`DREAMCAST_FAST_SPRITES` was on or off for future readers (it was `ON` for
+this capture — harmless for hzoom-histogram purposes since the profiler
+counts `hzoom` values regardless of which draw path renders them, but
+worth stating so nobody assumes this represents the "before" state for the
+LUT-optimization comparison).
 
 There's a known intermittent crash-on-exit (see harness doc's
 `DREAMCAST_AUTOSTART` section) that has at least once required a full
