@@ -1,3 +1,33 @@
+**Dreamcast Cannonball Outrun**
+
+This is a very console (Dreamcast) focused build on Cannonball Outrun Engine.
+
+- It runs at a very solid 60FPS. Usually only dips when starting a new game, saving, etc. 
+- Competitive Scoring with multiple leaderboards - Easy settings lower the score, harder settings increase the score
+- Optional Online Leaderboard functionality via QR Code
+- Optional Custom CD quality music.
+- Scanlines working with the Dreamcast proplerly (Overlay and True Scanline)
+- Optional CRT Overlay
+- Time Trial Mode with it's own leaderboard
+- New car colors and an unlockable Rainbow Color
+- New "Cockpit view" with front end graphics
+- General Quality of Live improvements
+
+**Recommended Installation: EasyCompile (no installs)**
+
+EasyCompile is a web page that makes the disc on your computer, in the browser. Nothing is installed and nothing is uploaded.
+
+Download tools/easycompile/easycompile.html (on GitHub: open the file and click Download raw file).
+Open it in Chrome, Edge or Firefox.
+Drop your OutRun ROM zip on the page (a zip or the loose files; names don't matter).
+Optionally pick up to four songs to replace the tunes (MP3, OGG, WAV, FLAC or M4A). In the game, choose SETTINGS > SOUND > MUSIC SOURCE.
+Click Make disc, then Download cannonball.cdi.
+
+Big thanks to Chris White and GPF.
+
+Have fun!
+
+
 Cannonball - OutRun Engine
 ==========================
 
@@ -39,29 +69,3 @@ Build
 
 * Run CMake to generate the relevant build files for your compiler. You can optionally pass -DTARGET=filename to pass a custom .cmake file
 * Compile using your chosen compiler. Further details below.
-
-### Visual Studio 2019 Community Edition
-
-* Create to the sub-directory you want to create your build files in (e.g. or vs_build)
-
-    cmake -G "Visual Studio 16 2019" ../cmake
-
-* Open the created CannonBall solution in VS 2019. 
-* Right click and choose 'Set as StartUp project'. 
-* Set working directory to something sensible. Right click -> Configuration properties -> Debugging
-* Ensure config.xml is in the working directory. _You can specify an alternate location on the command line_
-* Edit config.xml to reflect the paths of your roms and res directories. By default, they should be in the working directory.
-* Copy the OutRun revision B romset to the roms subdirectory. 
-* You can then compile, debug and run from Visual Studio as expected.
-
-### Dreamcast
-
-Easiest: open `easycompile.html` (at the top of this repository) in a web browser, drop in your OutRun ROM zip and click **Make disc** (no installs). To build it yourself, see [docs/BUILDING-DREAMCAST.md](docs/BUILDING-DREAMCAST.md).
-
-Test running in dreamcast emulator Deecy
-
-https://github.com/user-attachments/assets/9b07ed8f-ee35-4fa1-b0fb-f6916c5e0684
-
-!!
-
-
