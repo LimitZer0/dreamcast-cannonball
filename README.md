@@ -1,17 +1,17 @@
 **Dreamcast Cannonball Outrun**
-
-This is a very console (Dreamcast) focused build of Cannonball Outrun Engine.
+===============================
+This is a very console (Dreamcast) focused build of the Cannonball Outrun Engine.
 
 - It runs at a very solid 60FPS. It usually only dips when starting a new game, saving, etc. 
-- Competitive Scoring with multiple leaderboards - Easy settings lower the score, harder settings increase the score
-- Optional Online Leaderboard functionality via QR Code
-- Optional Custom music. Using your own music files.
+- Competitive Scoring with multiple leaderboards - Easy settings lower the score and harder settings increase the score.
+- Optional Online Leaderboard functionality via QR Code. Another VMU save with leaderboard website and key will allow this option to show on the menu.
+- Optional Custom music using your own music files.
 - Scanlines working with the Dreamcast proplerly (Overlay and True Scanline)
-- Optional CRT overlay
-- Time Trial Mode with it's own leaderboard
-- New car colors and an unlockable rainbow car
-- New "cockpit view" with front end graphics
-- General quality of life improvements
+- Optional CRT overlay.
+- Time Trial Mode with it's own leaderboard.
+- New car colors and an unlockable rainbow car.
+- New "cockpit view" with front end graphics.
+- General quality of life improvements.
 
 **Recommended Installation: EasyCompile (no installs)**
 
@@ -26,6 +26,9 @@ Click Make disc, then Download cannonball.cdi.
 Big thanks to Chris White and GPF.
 
 Have fun!
+
+<img width="640" height="500" alt="image" src="https://github.com/user-attachments/assets/51111fe5-790e-453e-845c-76bfd358c4d0" />
+
 
 
 Cannonball - OutRun Engine
