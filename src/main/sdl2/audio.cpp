@@ -14,6 +14,9 @@
     Copyright (c) 1998-2008 Atari800 development team
 ***************************************************************************/
 
+#ifdef DREAMCAST_CUSTOM_MUSIC
+#include "dreamcast/custom_music.hpp"
+#endif
 #include <iostream>
 #include <cstring>
 #include <SDL.h>
@@ -60,7 +63,7 @@ Audio::~Audio()
 
 void Audio::init()
 {
-    if (config.sound.enabled)
+    if (config.audio_running())
         start_audio();
 }
 
@@ -148,6 +151,9 @@ void Audio::start_audio()
 
         SDL_PauseAudioDevice(dev,0);
     }
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    custommusic::resume();
+#endif
 }
 
 void Audio::clear_buffers()
@@ -170,6 +176,10 @@ void Audio::clear_buffers()
 
 void Audio::stop_audio()
 {
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    // SDL's Dreamcast driver shuts down every AICA stream when it closes
+    custommusic::suspend();
+#endif
     if (sound_enabled)
     {
         sound_enabled = false;
@@ -184,18 +194,26 @@ void Audio::stop_audio()
 
 void Audio::pause_audio()
 {
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    custommusic::pause();
+#endif
     if (sound_enabled)
     {
         SDL_PauseAudioDevice(dev,1);
+        device_paused = true;
     }
 }
 
 void Audio::resume_audio()
 {
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    custommusic::unpause();
+#endif
     if (sound_enabled)
     {
         clear_buffers();
         SDL_PauseAudioDevice(dev,0);
+        device_paused = false;
     }
 }
 
@@ -206,19 +224,61 @@ void Audio::tick()
     int newpos;
     double bytes_per_ms;
 
-    if (!sound_enabled) return;
+    // Device paused (game pause): nothing plays, so don't wait for room
+    if (!sound_enabled || device_paused) return;
 
     // Update audio streams from PCM & YM Devices
     osoundint.pcm->stream_update();
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    // Music and FM effects normally come from recordings streamed by the
+    // AICA, so the FM chip's synthesis (the costliest part of the sound
+    // emulation) is skipped whenever nothing needs it. Its registers are
+    // still written, so it resumes correctly.
+    static int16_t* ym_silence = NULL;
+    static uint32_t ym_silence_size = 0;
+    const bool ym_on = custommusic::fm_chip_needed();
+    if (!ym_on && ym_silence_size < osoundint.ym->buffer_size)
+    {
+        delete[] ym_silence;
+        ym_silence_size = osoundint.ym->buffer_size;
+        ym_silence = new int16_t[ym_silence_size]();
+    }
+    if (ym_on)
+        osoundint.ym->stream_update();
+#else
+    const bool ym_on = true;
+    int16_t* ym_silence = NULL;
     osoundint.ym->stream_update();
+#endif
+
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    // SOUND FX off: silence the sound chips (effects and engine), unless
+    // they're playing the music themselves (no recording available). The
+    // streamed music is separate and keeps playing.
+    const bool chips_audible = config.sound.enabled || custommusic::chip_music_active();
+    if (!chips_audible && ym_silence_size < osoundint.pcm->buffer_size)
+    {
+        delete[] ym_silence;
+        ym_silence_size = osoundint.pcm->buffer_size;
+        ym_silence = new int16_t[ym_silence_size]();
+    }
+#else
+    const bool chips_audible = true;
+#endif
 
     // Get the audio buffers we've just output
-    int16_t *pcm_buffer = osoundint.pcm->get_buffer();
-    int16_t *ym_buffer  = osoundint.ym->get_buffer();
+    int16_t *pcm_buffer = chips_audible ? osoundint.pcm->get_buffer() : ym_silence;
+    int16_t *ym_buffer  = ym_on && chips_audible ? osoundint.ym->get_buffer() : ym_silence;
     int16_t *wav_buffer = wavfile.data;
 
     int samples_written = osoundint.pcm->buffer_size;
 
+    // Game paused: keep the device fed with silence (the Dreamcast's sound
+    // driver repeats its last buffer when it runs dry, which droned the
+    // engine note). Streamed music is separate and keeps playing.
+    if (game_paused)
+        memset(mix_buffer, 0, samples_written * sizeof(mix_buffer[0]));
+    else
     // And mix them into the mix_buffer
     for (int i = 0; i < samples_written; i++)
     {

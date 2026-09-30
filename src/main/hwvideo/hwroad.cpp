@@ -132,7 +132,12 @@ void HWRoad::init(const uint8_t* src_road, const bool hires)
     x_offset = 0;
 
     if (src_road)
+    {
         decode_road(src_road);
+#ifdef DREAMCAST_PVR_RENDERER
+        pvrroad::build_runs(roads, pvrroad::ROAD_ROWS, road_runs);
+#endif
+    }
     
     if (hires)
     {
@@ -287,8 +292,21 @@ void HWRoad::render_background_lores(uint16_t* pixels)
             uint16_t* pPixel = pixels + (y * config.s16_width);
             color |= color_offset3;
             
+#ifdef DREAMCAST_PVR_RENDERER
+            {
+                // 32-bit stores (rows are 4-byte aligned, width is a multiple of 8)
+                uint32_t* p32 = (uint32_t*)pPixel;
+                const uint32_t c2 = (uint32_t)color | ((uint32_t)color << 16);
+                for (x = 0; x < config.s16_width; x += 8)
+                {
+                    p32[0] = c2; p32[1] = c2; p32[2] = c2; p32[3] = c2;
+                    p32 += 4;
+                }
+            }
+#else
             for (x = 0; x < config.s16_width; x++)
                 *(pPixel)++ = color;
+#endif
         }
     }
 }
@@ -695,3 +713,33 @@ void HWRoad::render_foreground_hires(uint16_t* pixels)
     } // end for
 }
 
+
+#ifdef DREAMCAST_PVR_RENDERER
+void HWRoad::render_foreground_rgb565(const uint16_t* lut, uint16_t* out, uint8_t* line_mask)
+{
+    pvrroad::RoadState st;
+    st.roadram       = ramBuff;
+    st.road_control  = road_control;
+    st.color_offset1 = color_offset1;
+    st.color_offset2 = color_offset2;
+    st.x_offset      = x_offset;
+    st.s16_x_off     = config.s16_x_off;
+    st.width         = config.s16_width;
+    st.height        = S16_HEIGHT;
+    pvrroad::render_foreground_rgb565(st, road_runs, lut, out, line_mask);
+}
+
+void HWRoad::foreground_coverage(uint8_t* line_mask)
+{
+    pvrroad::RoadState st;
+    st.roadram       = ramBuff;
+    st.road_control  = road_control;
+    st.color_offset1 = color_offset1;
+    st.color_offset2 = color_offset2;
+    st.x_offset      = x_offset;
+    st.s16_x_off     = config.s16_x_off;
+    st.width         = config.s16_width;
+    st.height        = S16_HEIGHT;
+    pvrroad::foreground_coverage(st, line_mask);
+}
+#endif

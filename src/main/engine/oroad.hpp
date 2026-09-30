@@ -161,10 +161,16 @@ public:
     uint8_t get_view_mode();
     int16_t get_road_y(uint16_t);
     void set_view_mode(uint8_t, bool snap = false);
+    // Dreamcast: the in-car view has a second step with the scene zoomed and
+    // a bonnet drawn (the renderer does both). View button cycle:
+    // original, elevated, in-car, in-car with bonnet.
+    bool hood_view() const { return view_mode == VIEW_INCAR && hood; }
+    void set_hood(bool on) { hood = on; }
 
 private:
     // Enhancement: View Mode
     uint8_t view_mode;
+    bool hood = false;
 
     // Enhancement: Target Horizon Adjust
     int16_t horizon_target;

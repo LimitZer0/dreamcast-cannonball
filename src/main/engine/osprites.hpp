@@ -138,6 +138,10 @@ public:
 
     void move_sprite(oentry*, uint8_t);
 
+    // Body colours of a car palette (words 1-6, dark to light) and its
+    // highlight, as S16 colour words. The rainbow car gives its current colours.
+    void car_body_colours(uint16_t pal_src, uint16_t out[7]);
+
 private:
 
 	// Start of Sprite RAM
@@ -177,6 +181,8 @@ private:
 	uint8_t sprite_order2[0x2000];
 
     void sprite_control();
+    void rainbow_car();
+    uint16_t rainbow_body[6] = { 0x0008, 0x033a, 0x055c, 0x066d, 0x088d, 0x0aad };
 	void hide_hwsprite(oentry*, osprite*);
 	void finalise_sprites();
 };

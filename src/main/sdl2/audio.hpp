@@ -41,10 +41,16 @@ public:
     double adjust_speed();
     void load_wav(const char* filename);
     void clear_wav();
+    void pause_audio();
+    void resume_audio();
+    // Game pause (START on Dreamcast): sound effects and engine silent
+    void set_game_paused(bool on) { game_paused = on; }
 
 private:
 	// Enable/Disable Sound
 	bool sound_enabled;
+	bool device_paused = false;
+	bool game_paused = false;
 	
     // Stereo. Could be changed, requires some recoding.
     static const uint32_t CHANNELS = 2;
@@ -74,8 +80,6 @@ private:
     double avg_gap;
 
     void clear_buffers();
-    void pause_audio();
-    void resume_audio();
 
     // SDL2 audio device
     SDL_AudioDeviceID dev;

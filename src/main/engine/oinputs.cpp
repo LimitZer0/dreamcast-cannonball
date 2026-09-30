@@ -59,13 +59,17 @@ void OInputs::tick()
     // Analog Controls
     else
     {
-        input_steering = input.a_wheel;
+        // D-pad left/right still steer (at the digital steer speed)
+        if (input.is_pressed(Input::LEFT) || input.is_pressed(Input::RIGHT))
+            digital_steering();
+        else
+            input_steering = input.a_wheel;
 
-        // Analog Pedals
+        // Analog Pedals (a pedal button held counts as fully pressed)
         if (input.analog == 1)
         {
-            input_acc      = input.a_accel;
-            input_brake    = input.a_brake;
+            input_acc      = input.is_pressed(Input::ACCEL) ? 0xFF : input.a_accel;
+            input_brake    = input.is_pressed(Input::BRAKE) ? 0xFF : input.a_brake;
         }
         // Digital Pedals
         else
@@ -176,7 +180,11 @@ void OInputs::do_gear()
         // Manual: Keyboard/Digital Button
         else
         {
+#ifdef __DREAMCAST__
+            if (input.has_pressed(Input::GEAR2))     // X: the gear-up button
+#else
             if (input.has_pressed(Input::GEAR1))
+#endif
                 gear = !gear;
         }
     }

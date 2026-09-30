@@ -13,6 +13,30 @@ set(USE_BOOST 0)
 add_definitions(-DDREAMCAST)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
+# Native PowerVR renderer: sprites and the HUD text layer are drawn by the
+# PVR as textured quads instead of being rasterised by the SH-4.
+# OFF falls back to the original SDL2 surface renderer.
+option(DREAMCAST_PVR_RENDERER "Draw sprites/text with the PowerVR (hardware accelerated)" ON)
+if(DREAMCAST_PVR_RENDERER)
+    add_definitions(-DDREAMCAST_PVR_RENDERER)
+endif()
+
+# Custom music: play /cd/music/1-4.wav instead of the chip music (menu option)
+set(DREAMCAST_BUILD 1)
+add_definitions(-DDREAMCAST_CUSTOM_MUSIC)
+
+# Build a ROM-less self-test instead of the game: renders random frames with
+# both the original software renderer and the PVR renderer and compares them.
+option(DREAMCAST_PVR_SELFTEST "Build the PVR renderer self-test instead of the game" OFF)
+if(DREAMCAST_PVR_SELFTEST)
+    add_definitions(-DDREAMCAST_PVR_SELFTEST)
+endif()
+
+# Where the PVR samples within a pixel (0.5 = centre). Only change if sprites
+# appear misaligned by a pixel on real hardware.
+set(DREAMCAST_PVR_SAMPLE_OFFSET 0.5 CACHE STRING "PowerVR texture sampling offset within a pixel")
+add_definitions(-DDREAMCAST_PVR_SAMPLE_OFFSET=${DREAMCAST_PVR_SAMPLE_OFFSET}f)
+
 option(DREAMCAST_SKIP_SPRITE_SHADOWS "Skip generated sprite shadow entries on Dreamcast" OFF)
 if(DREAMCAST_SKIP_SPRITE_SHADOWS)
     add_definitions(-DDREAMCAST_SKIP_SPRITE_SHADOWS)
@@ -112,7 +136,9 @@ if(DREAMCAST_SKIP_HISCORE_ENTRY)
 endif()
 
 # Platform Specific Libraries
+# (SDL2's Dreamcast video driver references GLdc symbols)
 set(platform_link_libs
+    GL
 )
 
 # Platform Specific Link Directories

@@ -80,6 +80,9 @@ hwtiles::hwtiles(void)
 {
     for (int i = 0; i < 2; i++)
         tile_banks[i] = i;
+#ifdef DREAMCAST_PVR_RENDERER
+    tiles_version = 0;
+#endif
 
     set_x_clamp(CENTRE);
 }
@@ -110,8 +113,32 @@ void hwtiles::init(uint8_t* src_tiles, const bool hires)
             }
             tiles[i] = val; // Store converted value
         }
+
+        // The text font has no colon: draw one in the unused blank tile
+        // 0x40 (before 'A'), in the style of the full stop (0x5B)
+        static const uint32_t COLON[8] =
+        {
+            0x00000000, 0x00777700, 0x00744700, 0x00777700,
+            0x00000000, 0x00777700, 0x00755700, 0x00777700,
+        };
+        bool blank = true;
+        for (int r = 0; r < 8; r++) blank &= tiles[0x40 * 8 + r] == 0;
+        if (blank)
+            memcpy(&tiles[0x40 * 8], COLON, sizeof(COLON));
+
+        // The font's % (0x25) has no black outline, unlike the letters and
+        // digits: redraw it in their style (outline 7, shading 1-5 by row)
+        static const uint32_t PERCENT[8] =
+        {
+            0x77770777, 0x71177717, 0x72277277, 0x77772770,
+            0x07737777, 0x77477447, 0x75777557, 0x77707777,
+        };
+        memcpy(&tiles[0x25 * 8], PERCENT, sizeof(PERCENT));
         memcpy(tiles_backup, tiles, TILES_LENGTH * sizeof(uint32_t));
     }
+#ifdef DREAMCAST_PVR_RENDERER
+    tiles_version++;
+#endif
     
     if (hires)
     {
@@ -144,11 +171,42 @@ void hwtiles::patch_tiles(RomLoader* patch)
         tiles[tile_index++] = patch->read32(&i);
         tiles[tile_index++] = patch->read32(&i);
     }
+#ifdef DREAMCAST_PVR_RENDERER
+    tiles_version++;
+#endif
+}
+
+void hwtiles::set_menu_glyphs(bool on)
+{
+    static const uint32_t BRACKETS[16] =
+    {
+        0x00077700, 0x00771700, 0x00727700, 0x00727000, 0x00737000, 0x00747700, 0x00775700, 0x00077700,   // (
+        0x00777000, 0x00717700, 0x00772700, 0x00072700, 0x00073700, 0x00774700, 0x00757700, 0x00777000,   // )
+    };
+    static uint32_t original[16];
+    static bool have_original = false;
+    uint32_t* t = &tiles[0x28 * 8];
+    if (!have_original)
+    {
+        memcpy(original, t, sizeof(original));
+        have_original = true;
+    }
+    const uint32_t* want = on ? BRACKETS : original;
+    if (memcmp(t, want, sizeof(original)) != 0)
+    {
+        memcpy(t, want, sizeof(original));
+#ifdef DREAMCAST_PVR_RENDERER
+        tiles_version++;
+#endif
+    }
 }
 
 void hwtiles::restore_tiles()
 {
     memcpy(tiles, tiles_backup, TILES_LENGTH * sizeof(uint32_t));
+#ifdef DREAMCAST_PVR_RENDERER
+    tiles_version++;
+#endif
 }
 
 // Set Tilemap X Clamp
@@ -234,6 +292,19 @@ void hwtiles::render_tile_layer(uint16_t* buf, uint8_t page_index, uint8_t prior
 
         if (y <= -8 || y >= S16_HEIGHT)
             continue;
+
+#ifdef DREAMCAST_PVR_RENDERER
+        // Skip tile rows the road foreground will paint over completely
+        if (skip_lines)
+        {
+            const int y0 = y < 0 ? 0 : y;
+            const int y1 = y + 8 > S16_HEIGHT ? S16_HEIGHT : y + 8;
+            int yy = y0;
+            while (yy < y1 && skip_lines[yy]) yy++;
+            if (yy == y1)
+                continue;
+        }
+#endif
 
         for (int col = 0; col < cols; col++)
         {
@@ -402,13 +473,28 @@ void hwtiles::render8x8_tile_mask_lores(
 {
     uint32_t nPalette = (nTilePalette << nColourDepth) | nMaskColour;
     uint32_t* pTileData = tiles + (nTileNumber << 3);
-    buf += (StartY * config.s16_width) + StartX;
+    const int width = config.s16_width;
+    buf += (StartY * width) + StartX;
 
     for (int y = 0; y < 8; y++) 
     {
         uint32_t p0 = *pTileData;
 
-        if (p0 != nMaskColour) 
+        // Fast path: no transparent (zero) pixel in this row of 8, so write
+        // them all without testing each one. (Zero-nibble test: a nibble is
+        // zero iff the subtraction borrows into its top bit.)
+        if (nMaskColour == 0 && ((p0 - 0x11111111u) & ~p0 & 0x88888888u) == 0)
+        {
+            buf[0] = nPalette + (p0 >> 28);
+            buf[1] = nPalette + ((p0 >> 24) & 0xf);
+            buf[2] = nPalette + ((p0 >> 20) & 0xf);
+            buf[3] = nPalette + ((p0 >> 16) & 0xf);
+            buf[4] = nPalette + ((p0 >> 12) & 0xf);
+            buf[5] = nPalette + ((p0 >> 8) & 0xf);
+            buf[6] = nPalette + ((p0 >> 4) & 0xf);
+            buf[7] = nPalette + (p0 & 0xf);
+        }
+        else if (p0 != nMaskColour) 
         {
             uint32_t c7 = p0 & 0xf;
             uint32_t c6 = (p0 >> 4) & 0xf;
@@ -428,7 +514,7 @@ void hwtiles::render8x8_tile_mask_lores(
             if (c6) buf[6] = nPalette + c6;
             if (c7) buf[7] = nPalette + c7;
         }
-        buf += config.s16_width;
+        buf += width;
         pTileData++;
     }
 }

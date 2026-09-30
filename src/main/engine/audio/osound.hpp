@@ -261,6 +261,14 @@ public:
     void init_fm_chip();
     void tick();
 
+    // Offline rendering (tools/render_audio): hash of the sequencer state
+    // that decides what the music plays next, used to find exact loop points
+    uint32_t music_state_hash() const;
+    // True if a sound channel (e.g. channel::YM_FX1) is currently enabled
+    bool channel_enabled(uint16_t chan) const { return (chan_ram[chan] & 0x80) != 0; }
+    // Times each channel (index = offset / 0x20) has taken its LOOP_FOREVER
+    uint32_t loop_forever_count[32] = {0};
+
 private:
     const static uint16_t PCM_RAM_SIZE  = 0x100;
     const static uint16_t CHAN_RAM_SIZE = 0x800;

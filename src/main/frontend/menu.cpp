@@ -6,6 +6,13 @@
     See license.txt for more details.
 ***************************************************************************/
 
+#ifdef DREAMCAST_CUSTOM_MUSIC
+#include "dreamcast/custom_music.hpp"
+#endif
+#ifdef DREAMCAST_PVR_RENDERER
+#include "dreamcast/pvr_render.hpp"
+#endif
+#include <cstdio>
 #include "main.hpp"
 #include "menu.hpp"
 #include "menulabels.hpp"
@@ -18,9 +25,13 @@
 #include "engine/omusic.hpp"
 #include "engine/opalette.hpp"
 #include "engine/otiles.hpp"
+#include "engine/ostats.hpp"
 
 #include "frontend/cabdiag.hpp"
 #include "frontend/ttrial.hpp"
+#include "frontend/leaderboard.hpp"
+#include "frontend/timeattack.hpp"
+#include <cstring>
 
 // Logo Y Position
 const static int16_t LOGO_Y = -60;
@@ -59,6 +70,9 @@ void Menu::populate()
     menu_handling.push_back(ENTRY_BUMPER);
     menu_handling.push_back(ENTRY_TURBO);
     menu_handling.push_back(ENTRY_COLOR);
+#ifdef __DREAMCAST__
+    menu_handling.push_back(ENTRY_BADGE);
+#endif
     menu_handling.push_back(ENTRY_BACK);
 
     menu_cont.push_back(ENTRY_START_CONT);
@@ -86,8 +100,13 @@ void Menu::populate()
     text_redefine.push_back("PRESS RIGHT");
     text_redefine.push_back("PRESS ACCELERATE");
     text_redefine.push_back("PRESS BRAKE");
+#ifdef __DREAMCAST__
+    text_redefine.push_back("PRESS GEAR DOWN");
+    text_redefine.push_back("PRESS GEAR UP");
+#else
     text_redefine.push_back("PRESS GEAR");
     text_redefine.push_back("PRESS GEAR HIGH");
+#endif
     text_redefine.push_back("PRESS START");
     text_redefine.push_back("PRESS COIN IN");
     text_redefine.push_back("PRESS MENU");
@@ -104,11 +123,14 @@ void Menu::populate_for_pc()
     menu_main.push_back(ENTRY_GAMEMODES);
     menu_main.push_back(ENTRY_SETTINGS);
     menu_main.push_back(ENTRY_ABOUT);
-    menu_main.push_back(ENTRY_EXIT);
+#ifndef __DREAMCAST__
+    menu_main.push_back(ENTRY_EXIT);            // nothing to exit to on Dreamcast
+#endif
 
     menu_gamemodes.push_back(ENTRY_ENHANCED);
     menu_gamemodes.push_back(ENTRY_ORIGINAL);
     menu_gamemodes.push_back(ENTRY_CONT);
+    menu_gamemodes.push_back(ENTRY_TIMEATTACK);
     menu_gamemodes.push_back(ENTRY_TIMETRIAL);
     menu_gamemodes.push_back(ENTRY_BACK);
 
@@ -119,17 +141,38 @@ void Menu::populate_for_pc()
     menu_settings.push_back(ENTRY_CONTROLS);
     menu_settings.push_back(ENTRY_ENGINE);
     menu_settings.push_back(ENTRY_SCORES);
+#ifdef __DREAMCAST__
+    menu_settings.push_back(ENTRY_RESETCFG);
+#endif
     menu_settings.push_back(ENTRY_SAVE);
 
     menu_video.push_back(ENTRY_FPS);
+#ifdef DREAMCAST_PVR_RENDERER
+    // Dreamcast: always 320x224, shown pixel perfect (640x448) or full screen
+    menu_video.push_back(ENTRY_DISPLAY);
+    menu_video.push_back(ENTRY_SCANLINES);
+    menu_video.push_back(ENTRY_CRT);
+#ifdef __DREAMCAST__
+    menu_video.push_back(ENTRY_VMUANIM);
+#endif
+    menu_video.push_back(ENTRY_FPSCOUNT);
+#ifdef DREAMCAST_PERF_TEST
+    menu_video.push_back(ENTRY_RENDERMODE);
+    menu_video.push_back(ENTRY_SPRITEMODE);
+#endif
+#else
     menu_video.push_back(ENTRY_FULLSCREEN);
     menu_video.push_back(ENTRY_WIDESCREEN);
     menu_video.push_back(ENTRY_HIRES);
     menu_video.push_back(ENTRY_SCALE);
     menu_video.push_back(ENTRY_SCANLINES);
+#endif
     menu_video.push_back(ENTRY_BACK);
 
     menu_sound.push_back(ENTRY_MUTE);
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    menu_sound.push_back(ENTRY_MUSICSRC);
+#endif
     menu_sound.push_back(ENTRY_ADVERTISE);
     menu_sound.push_back(ENTRY_PREVIEWSND);
     menu_sound.push_back(ENTRY_FIXSAMPLES);
@@ -138,8 +181,12 @@ void Menu::populate_for_pc()
 
     menu_engine.push_back(ENTRY_TIME);
     menu_engine.push_back(ENTRY_TRAFFIC);
+    menu_engine.push_back(ENTRY_SCOREMULT);
     menu_engine.push_back(ENTRY_TRACKS);
-    menu_engine.push_back(ENTRY_FREEPLAY);
+    menu_engine.push_back(ENTRY_SPEEDUNIT);
+#ifndef __DREAMCAST__
+    menu_engine.push_back(ENTRY_FREEPLAY);  // Dreamcast: always free play
+#endif
     menu_engine.push_back(ENTRY_SUB_ENHANCEMENTS);
     menu_engine.push_back(ENTRY_SUB_HANDLING);
     menu_engine.push_back(ENTRY_BACK);
@@ -151,6 +198,23 @@ void Menu::populate_for_pc()
     menu_enhancements.push_back(ENTRY_BACK);
 }
 
+// Settings that change the score: show the multiplier next to them
+// (see OStats::calc_score_mult; only with score scaling on)
+static std::string gear_label()
+{
+    std::string s = GEAR_LABELS[config.controls.gear];
+    if (config.engine.score_scaling && config.controls.gear == config.controls.GEAR_AUTO)
+        s += "  SCORE X0.90";
+    return s;
+}
+
+static std::string timer_label()
+{
+    if (!config.engine.fix_timer)
+        return "OFF";
+    return config.engine.score_scaling && !config.engine.freeze_timer ? "ON  SCORE X1.10" : "ON";
+}
+
 // Split into own function to handle controllers being added/removed
 void Menu::populate_controls()
 {
@@ -159,7 +223,9 @@ void Menu::populate_controls()
 
     menu_controls.push_back(ENTRY_GEAR);
     if (input.gamepad) menu_controls.push_back(ENTRY_CONFIGUREGP);
-    menu_controls.push_back(ENTRY_REDEFKEY);
+#ifndef __DREAMCAST__
+    menu_controls.push_back(ENTRY_REDEFKEY);    // no keyboard play on Dreamcast
+#endif
     menu_controls.push_back(ENTRY_DSTEER);
     menu_controls.push_back(ENTRY_DPEDAL);
     menu_controls.push_back(ENTRY_BACK);
@@ -191,7 +257,9 @@ void Menu::populate_for_cabinet()
     menu_gamemodes.push_back(ENTRY_BACK);
 
     menu_s_dips.push_back(ENTRY_S_CAB);
+#ifndef __DREAMCAST__
     menu_s_dips.push_back(ENTRY_FREEPLAY);
+#endif
     menu_s_dips.push_back(ENTRY_TIME);
     menu_s_dips.push_back(ENTRY_TRAFFIC);
     menu_s_dips.push_back(ENTRY_ADVERTISE);
@@ -240,6 +308,21 @@ void Menu::init(bool init_main_menu)
     video.clear_text_ram();
     video.tile_layer->restore_tiles();
     ologo.enable(LOGO_Y);
+    leaderboard::reset();       // no high score QR code left over
+    leaderboard::menu_close();
+    timeattack::end();          // back from a time trial: traffic setting restored
+
+    // SUBMIT SCORES only with a leaderboard pass on a memory card (checked
+    // every time the menu opens, so a card can be swapped in)
+    leaderboard::load_pass();
+    for (size_t i = 0; i < menu_main.size(); i++)
+        if (menu_main[i] == ENTRY_SUBMIT) { menu_main.erase(menu_main.begin() + i); break; }
+    if (leaderboard::enabled())
+    {
+        size_t at = 0;
+        while (at < menu_main.size() && menu_main[at] != ENTRY_GAMEMODES) at++;
+        menu_main.insert(menu_main.begin() + (at < menu_main.size() ? at + 1 : menu_main.size()), ENTRY_SUBMIT);
+    }
 
     // Setup palette, road and colours for background
     oroad.stage_lookup_off = 9;
@@ -269,6 +352,9 @@ void Menu::init(bool init_main_menu)
         refresh_menu();
     }
 
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    custommusic::stop();
+#endif
     // Reset audio, so we can play tones
     osoundint.has_booted = true;
     osoundint.init();
@@ -287,6 +373,7 @@ void Menu::tick()
         case STATE_MENU:
         case STATE_REDEFINE_KEYS:
         case STATE_REDEFINE_JOY:
+        case STATE_QR:
             tick_ui();
             break;
 
@@ -332,6 +419,9 @@ void Menu::tick_ui()
         // in the same frame as STATE_INIT_MENU, which hung the console.
         if (frame == 2)
         {
+#ifdef DREAMCAST_DEBUG_TIMEATTACK
+            timeattack::start();        // test builds: autostart a time trial
+#endif
             start_game(Outrun::MODE_ORIGINAL);
             return;
         }
@@ -346,6 +436,10 @@ void Menu::tick_ui()
     else if (state == STATE_REDEFINE_JOY)
     {
         redefine_joystick();
+    }
+    else if (state == STATE_QR)
+    {
+        tick_submit();
     }
 
     // Show messages
@@ -409,8 +503,8 @@ void Menu::draw_menu_options()
     {
         std::string s = menu_selected->at(i);
 
-        // Centre the menu option
-        x = 20 - ((int)s.length() >> 1);
+        // Centre the menu option (odd lengths shifted half a character)
+        x = ohud.centre_x(y, (int)s.length());
         ohud.blit_text_new(x, y, s.c_str(), ohud.GREEN);
 
         if (!is_text_menu)
@@ -426,16 +520,33 @@ void Menu::draw_menu_options()
     }
 }
 
+// SUBMIT SCORES: QR code for the online leaderboard, one per high score
+// table with scores of your own. Left/right switch table, start or
+// accelerate go back.
+void Menu::tick_submit()
+{
+    const int n = leaderboard::menu_tables();
+    const std::string title = "SCAN TO SUBMIT  " + leaderboard::menu_table_name();
+    ohud.blit_text_centre(2, title.c_str(), ohud.GREEN);
+    const char* help = n > 1 ? "LEFT RIGHT  OTHER TABLES   START  BACK" : "START  BACK";
+    ohud.blit_text_centre(26, help, ohud.GREY);
+
+    if (n > 1 && input.has_pressed(Input::LEFT))       leaderboard::menu_step(-1);
+    else if (n > 1 && input.has_pressed(Input::RIGHT)) leaderboard::menu_step(+1);
+    else if (input.has_pressed(Input::START) || input.has_pressed(Input::ACCEL) || input.has_pressed(Input::MENU))
+    {
+        leaderboard::menu_close();
+        state = STATE_MENU;
+    }
+}
+
 // Draw a single line of text
 void Menu::draw_text(std::string s)
 {
-    // Centre text
-    int8_t x = 20 - ((int)s.length() >> 1);
-
     // Find central column in screen. 
     int8_t y = 13 + ((ROWS - 13) >> 1) - 1;
 
-    ohud.blit_text_new(x, y, s.c_str(), ohud.GREEN);
+    ohud.blit_text_centre(y, s.c_str(), ohud.GREEN);
 }
 
 static bool starts_with(const std::string& value, const char* prefix)
@@ -447,6 +558,35 @@ static bool starts_with(const std::string& value, const char* prefix)
 
 void Menu::tick_menu()
 {
+#ifdef DREAMCAST_DEBUG_MENU_SHOTS
+    extern bool vmu_load_config();
+    {
+        static int dbg = 0;
+        switch (++dbg)
+        {
+            case 200: set_menu(&menu_gamemodes); break;
+            case 350: set_menu(&menu_settings); break;
+            case 500: config.video.scanlines = 50; set_menu(&menu_video); break;
+            case 650: config.video.scanlines = 30; refresh_menu(); break;
+            case 700: set_menu(&menu_handling); break;
+            case 720: refresh_menu(); break;
+            case 800: populate_controls(); set_menu(&menu_controls); break;
+            case 950: config.video.scanlines = 0; config.video.mode = video_settings_t::MODE_FULL; set_menu(&menu_video); break;
+            case 1100: config.video.scanlines = 50; config.controls.padconfig[7] = 5; config.save();
+                       printf("CFGDBG saved sl=%d view=%d\n", config.video.scanlines, config.controls.padconfig[7]); break;
+            case 1200: printf("CFGDBG clear=%d\n", config.clear_scores()); config.video.scanlines = 7; config.load();
+                       printf("CFGDBG after clear+load sl=%d view=%d\n", config.video.scanlines, config.controls.padconfig[7]); break;
+            case 1300: printf("CFGDBG reset=%d\n", config.reset_settings());
+                       printf("CFGDBG after reset sl=%d view=%d gear1=%d gear2=%d menu=%d\n", config.video.scanlines, config.controls.padconfig[7],
+                              config.controls.padconfig[2], config.controls.padconfig[3], config.controls.padconfig[6]);
+                       config.video.scanlines = 7; vmu_load_config();
+                       printf("CFGDBG after reset+load sl=%d view=%d rainbow=%d\n", config.video.scanlines, config.controls.padconfig[7], config.engine.rainbow_unlocked); break;
+        }
+        if (dbg % 150 == 60)
+            for (size_t i = 0; i < menu_selected->size(); i++)
+                printf("MENUDBG %d: %s\n", dbg, menu_selected->at(i).c_str());
+    }
+#endif
     // Tick Controls
     if (input.has_pressed(Input::DOWN) || oinputs.is_analog_l())
     {
@@ -498,6 +638,13 @@ void Menu::tick_menu()
             }
             else if (SELECTED(ENTRY_GAMEMODES))     set_menu(&menu_gamemodes);
             else if (SELECTED(ENTRY_SETTINGS))      set_menu(&menu_settings);
+            else if (SELECTED(ENTRY_SUBMIT))
+            {
+                if (leaderboard::menu_open())
+                    state = STATE_QR;
+                else
+                    display_message("NO SCORES OF YOURS TO SUBMIT YET");
+            }
             else if (SELECTED(ENTRY_ABOUT))         set_menu(&menu_about);
             else if (SELECTED(ENTRY_EXIT))          cannonball::state = cannonball::STATE_QUIT;
             else if (SELECTED(ENTRY_DIPS))          set_menu(&menu_s_dips);
@@ -508,6 +655,11 @@ void Menu::tick_menu()
         {
             if (SELECTED(ENTRY_ENHANCED))           start_game(Outrun::MODE_ORIGINAL, 1);
             else if (SELECTED(ENTRY_ORIGINAL))      start_game(Outrun::MODE_ORIGINAL, 2);
+            else if (SELECTED(ENTRY_TIMEATTACK))
+            {
+                timeattack::start();            // no traffic, no countdown, no score
+                start_game(Outrun::MODE_ORIGINAL);
+            }
             else if (SELECTED(ENTRY_CONT))          set_menu(&menu_cont);
             else if (SELECTED(ENTRY_TIMETRIAL))     set_menu(&menu_timetrial);
             else if (SELECTED(ENTRY_BACK))          menu_back();
@@ -562,6 +714,17 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_SOUND))         set_menu(&menu_sound);
             else if (SELECTED(ENTRY_ENGINE))        set_menu(&menu_engine);
             else if (SELECTED(ENTRY_SCORES))        display_message(config.clear_scores() ? "SCORES CLEARED" : "NO SAVED SCORES FOUND!");
+#ifdef __DREAMCAST__
+            else if (SELECTED(ENTRY_RESETCFG))
+            {
+                const int fix = config.sound.fix_samples;
+                config.reset_settings();
+                if (config.sound.fix_samples != fix)
+                    roms.load_pcm_rom(config.sound.fix_samples == 1);
+                input.analog = config.controls.analog;
+                display_message("SETTINGS RESET");
+            }
+#endif
             else if (SELECTED(ENTRY_CONTROLS))
             {
                 display_message(input.gamepad ? "GAMEPAD FOUND" : "NO GAMEPAD FOUND!");
@@ -584,11 +747,13 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_SCORES))        display_message(config.clear_scores() ? "SCORES CLEARED" : "NO SAVED SCORES FOUND!");
             else if (SELECTED(ENTRY_MUTE))
             {
-                config.sound.enabled ^= 1;
+                config.sound.enabled ^= 1;     // Dreamcast: sound effects only
+#ifndef __DREAMCAST__
                 if (config.sound.enabled)
                     cannonball::audio.start_audio();
                 else
                     cannonball::audio.stop_audio();
+#endif
             }
 
         }
@@ -654,6 +819,43 @@ void Menu::tick_menu()
         }
         else if (menu_selected == &menu_video)
         {
+#ifdef DREAMCAST_PVR_RENDERER
+            if (SELECTED(ENTRY_DISPLAY))
+            {
+                // PIXEL PERFECT <-> ORIGINAL (the stretched FULL mode is gone)
+                config.video.mode = config.video.mode == video_settings_t::MODE_FULL ?
+                                    video_settings_t::MODE_WINDOW : video_settings_t::MODE_FULL;
+            }
+#ifdef DREAMCAST_PERF_TEST
+            else if (SELECTED(ENTRY_SPRITEMODE))
+                pvr_render_set_cutout(!pvr_render_cutout());
+            else if (SELECTED(ENTRY_RENDERMODE))
+                pvr_render_set_native(!pvr_render_native());
+#endif
+            else if (SELECTED(ENTRY_CRT))
+                config.video.crt = (config.video.crt + 1) % 3;
+            else if (SELECTED(ENTRY_VMUANIM))
+                config.video.vmu_anim ^= 1;
+            else if (SELECTED(ENTRY_FPSCOUNT))
+            {
+#ifdef __DREAMCAST__
+                config.video.fps_count = (config.video.fps_count + 1) % 3;   // off, on, detail
+#else
+                config.video.fps_count ^= 1;
+#endif
+            }
+            else if (SELECTED(ENTRY_SCANLINES))
+            {
+                // Drawn by the PVR each frame; no video restart needed
+                // OFF, 10-100% (see-through overlay), LINES (solid black
+                // lines between the game's lines on VGA), OFF
+                if (config.video.scanlines >= 100)
+                    config.video.scanlines = config.video.scanlines == 100 ? 101 : 0;
+                else
+                    config.video.scanlines += 10;
+            }
+            else
+#endif
             if (SELECTED(ENTRY_FULLSCREEN))
             {
                 if (++config.video.mode > video_settings_t::MODE_STRETCH)
@@ -705,13 +907,29 @@ void Menu::tick_menu()
         }
         else if (menu_selected == &menu_sound)
         {
+#ifdef DREAMCAST_CUSTOM_MUSIC
+            if (SELECTED(ENTRY_MUSICSRC))
+            {
+                // ORIGINAL -> CUSTOM (if the disc has music files) -> OFF
+                if (config.sound.custom_music == 0)
+                    config.sound.custom_music = custommusic::available() ? 1 : 2;
+                else if (config.sound.custom_music == 1)
+                    config.sound.custom_music = 2;
+                else
+                    config.sound.custom_music = 0;
+                custommusic::stop();
+            }
+            else
+#endif
             if (SELECTED(ENTRY_MUTE))
             {
-                config.sound.enabled ^= 1;
+                config.sound.enabled ^= 1;     // Dreamcast: sound effects only
+#ifndef __DREAMCAST__
                 if (config.sound.enabled)
                     cannonball::audio.start_audio();
                 else
                     cannonball::audio.stop_audio();
+#endif
             }
             else if (SELECTED(ENTRY_ADVERTISE))
                 config.sound.advertise ^= 1;
@@ -773,7 +991,7 @@ void Menu::tick_menu()
                 state = STATE_REDEFINE_JOY;
                 redef_state = 0;
                 input.joy_button = -1;
-                input.reset_axis_config();
+                input.capture_axis_rest();
             }
             else if (SELECTED(ENTRY_BACK))
                 menu_back();
@@ -781,6 +999,7 @@ void Menu::tick_menu()
         else if (menu_selected == &menu_engine)
         {
             if (SELECTED(ENTRY_TRACKS))                 config.engine.jap ^= 1;
+            else if (SELECTED(ENTRY_SPEEDUNIT))         config.engine.speed_mph ^= 1;
             else if (SELECTED(ENTRY_TIME))              config.inc_time();
             else if (SELECTED(ENTRY_TRAFFIC))           config.inc_traffic();
             else if (SELECTED(ENTRY_FREEPLAY))          config.engine.freeplay = !config.engine.freeplay;
@@ -802,7 +1021,8 @@ void Menu::tick_menu()
             else if (SELECTED(ENTRY_OFFROAD))           config.engine.offroad ^= 1;
             else if (SELECTED(ENTRY_BUMPER))            config.engine.bumper ^= 1;
             else if (SELECTED(ENTRY_TURBO))             config.engine.turbo ^= 1;
-            else if (SELECTED(ENTRY_COLOR))             { if (++config.engine.car_pal > 4) config.engine.car_pal = 0; }
+            else if (SELECTED(ENTRY_COLOR))             { if (++config.engine.car_pal > (config.engine.rainbow_unlocked ? 8 : 7)) config.engine.car_pal = 0; }
+            else if (SELECTED(ENTRY_BADGE))             config.video.mirror_badge ^= 1;
             else if (SELECTED(ENTRY_BACK))              menu_back();
         }
         else if (menu_selected == &menu_musictest)
@@ -900,15 +1120,32 @@ void Menu::refresh_menu()
         }
         else if (menu_selected == &menu_video)
         {
+#ifdef DREAMCAST_PVR_RENDERER
+            if (SELECTED(ENTRY_DISPLAY))            set_menu_text(ENTRY_DISPLAY, config.video.mode == video_settings_t::MODE_WINDOW ? "ORIGINAL" : "2X");
+            else if (SELECTED(ENTRY_CRT))           set_menu_text(ENTRY_CRT, config.video.crt == 2 ? "CORNERS + SHADE" : (config.video.crt ? "CORNERS" : "OFF"));
+            else if (SELECTED(ENTRY_VMUANIM))       set_menu_text(ENTRY_VMUANIM, config.video.vmu_anim ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_FPSCOUNT))      set_menu_text(ENTRY_FPSCOUNT, config.video.fps_count == 2 ? "DETAIL" : (config.video.fps_count ? "ON" : "OFF"));
+#ifdef DREAMCAST_PERF_TEST
+            else if (SELECTED(ENTRY_SPRITEMODE))     set_menu_text(ENTRY_SPRITEMODE, pvr_render_cutout() ? "CUTOUT" : "BLEND");
+            else if (SELECTED(ENTRY_RENDERMODE))     set_menu_text(ENTRY_RENDERMODE, pvr_render_native() ? "NATIVE" : "DIRECT");
+#endif
+            else
+#endif
             if (SELECTED(ENTRY_FULLSCREEN))         set_menu_text(ENTRY_FULLSCREEN, VIDEO_LABELS[config.video.mode]);
             else if (SELECTED(ENTRY_WIDESCREEN))    set_menu_text(ENTRY_WIDESCREEN, config.video.widescreen ? "ON" : "OFF");
             else if (SELECTED(ENTRY_SCALE))         set_menu_text(ENTRY_SCALE, Utils::to_string(config.video.scale) + "X");
             else if (SELECTED(ENTRY_HIRES))         set_menu_text(ENTRY_HIRES, config.video.hires ? "ON" : "OFF");
             else if (SELECTED(ENTRY_FPS))           set_menu_text(ENTRY_FPS, FPS_LABELS[config.video.fps]);
-            else if (SELECTED(ENTRY_SCANLINES))     set_menu_text(ENTRY_SCANLINES, config.video.scanlines ? Utils::to_string(config.video.scanlines) +"%": "OFF");
+            else if (SELECTED(ENTRY_SCANLINES))     set_menu_text(ENTRY_SCANLINES, config.video.scanlines > 100 ? "TRUE 100%" :
+                                                                         config.video.scanlines ? Utils::to_string(config.video.scanlines) + "% OVERLAY" : "OFF");
         }
         else if (menu_selected == &menu_sound)
         {
+#ifdef DREAMCAST_CUSTOM_MUSIC
+            if (SELECTED(ENTRY_MUSICSRC))           set_menu_text(ENTRY_MUSICSRC, config.sound.custom_music == 2 ? "OFF" :
+                                                                          (config.sound.custom_music == 1 && custommusic::available()) ? "CUSTOM" : "ORIGINAL");
+            else
+#endif
             if (SELECTED(ENTRY_MUTE))               set_menu_text(ENTRY_MUTE, config.sound.enabled ? "ON" : "OFF");
             else if (SELECTED(ENTRY_ADVERTISE))     set_menu_text(ENTRY_ADVERTISE, config.sound.advertise ? "ON" : "OFF");
             else if (SELECTED(ENTRY_PREVIEWSND))    set_menu_text(ENTRY_PREVIEWSND, config.sound.preview ? "ON" : "OFF");
@@ -916,7 +1153,7 @@ void Menu::refresh_menu()
         }
         else if (menu_selected == &menu_controls)
         {
-            if (SELECTED(ENTRY_GEAR))               set_menu_text(ENTRY_GEAR, GEAR_LABELS[config.controls.gear]);
+            if (SELECTED(ENTRY_GEAR))               set_menu_text(ENTRY_GEAR, gear_label());
             else if (SELECTED(ENTRY_DSTEER))        set_menu_text(ENTRY_DSTEER, Utils::to_string(config.controls.steer_speed));
             else if (SELECTED(ENTRY_DPEDAL))        set_menu_text(ENTRY_DPEDAL, Utils::to_string(config.controls.pedal_speed));
         }
@@ -928,8 +1165,19 @@ void Menu::refresh_menu()
         else if (menu_selected == &menu_engine || menu_selected == &menu_s_dips)
         {
             if (SELECTED(ENTRY_TRACKS))             set_menu_text(ENTRY_TRACKS, config.engine.jap ? "JAPAN" : "WORLD");
+            else if (SELECTED(ENTRY_SPEEDUNIT))     set_menu_text(ENTRY_SPEEDUNIT, config.engine.speed_mph ? "MPH" : "KPH");
             else if (SELECTED(ENTRY_TIME))          set_menu_text(ENTRY_TIME, config.engine.freeze_timer? "DISABLED" : DIP_DIFFICULTY[config.engine.dip_time]);
             else if (SELECTED(ENTRY_TRAFFIC))       set_menu_text(ENTRY_TRAFFIC, config.engine.disable_traffic ? "DISABLED" : DIP_DIFFICULTY[config.engine.dip_traffic]);
+            else if (SELECTED(ENTRY_SCOREMULT))
+            {
+                // Read-only: score multiplier for the current time/traffic
+                // settings, and whether assists put scores on their own table
+                const int m = OStats::calc_score_mult(false);
+                char buf[32];
+                snprintf(buf, sizeof(buf), "X%d.%02d%s", m / 1000, (m % 1000) / 10,
+                         OStats::assists_enabled() ? " MODIFIED" : "");
+                set_menu_text(ENTRY_SCOREMULT, buf);
+            }
             else if (SELECTED(ENTRY_OBJECTS))       set_menu_text(ENTRY_OBJECTS, config.engine.level_objects ? "ENHANCED" : "ORIGINAL");
             else if (SELECTED(ENTRY_PROTOTYPE))     set_menu_text(ENTRY_PROTOTYPE, config.engine.prototype ? "ON" : "OFF");
             else if (SELECTED(ENTRY_ATTRACT))       set_menu_text(ENTRY_ATTRACT, config.engine.new_attract ? "ON" : "OFF");
@@ -941,7 +1189,7 @@ void Menu::refresh_menu()
         {
             if (SELECTED(ENTRY_FPS))                set_menu_text(ENTRY_FPS, FPS_LABELS[config.video.fps]);
             else if (SELECTED(ENTRY_TRACKS))        set_menu_text(ENTRY_TRACKS, config.engine.jap ? "JAPAN" : "WORLD");
-            else if (SELECTED(ENTRY_GEAR))          set_menu_text(ENTRY_GEAR, GEAR_LABELS[config.controls.gear]);
+            else if (SELECTED(ENTRY_GEAR))          set_menu_text(ENTRY_GEAR, gear_label());
             else if (SELECTED(ENTRY_MUTE))          set_menu_text(ENTRY_MUTE, config.sound.enabled ? "ON" : "OFF");
         }
         else if (menu_selected == &menu_enhancements || menu_selected == &menu_s_enhance)
@@ -952,7 +1200,7 @@ void Menu::refresh_menu()
             else if (SELECTED(ENTRY_OBJECTS))       set_menu_text(ENTRY_OBJECTS, config.engine.level_objects ? "ENHANCED" : "ORIGINAL");
             else if (SELECTED(ENTRY_PROTOTYPE))     set_menu_text(ENTRY_PROTOTYPE, config.engine.prototype ? "ON" : "OFF");
             else if (SELECTED(ENTRY_S_BUGS))        set_menu_text(ENTRY_S_BUGS, config.engine.fix_bugs ? "ON" : "OFF");
-            else if (SELECTED(ENTRY_TIMER))         set_menu_text(ENTRY_TIMER, config.engine.fix_timer ? "ON" : "OFF");
+            else if (SELECTED(ENTRY_TIMER))         set_menu_text(ENTRY_TIMER, timer_label());
         }
         else if (menu_selected == &menu_handling)
         {
@@ -961,6 +1209,7 @@ void Menu::refresh_menu()
             else if (SELECTED(ENTRY_BUMPER))        set_menu_text(ENTRY_BUMPER, config.engine.bumper ? "ON" : "OFF");
             else if (SELECTED(ENTRY_TURBO))         set_menu_text(ENTRY_TURBO, config.engine.turbo ? "ON" : "OFF");
             else if (SELECTED(ENTRY_COLOR))         set_menu_text(ENTRY_COLOR, COLOR_LABELS[config.engine.car_pal]);
+            else if (SELECTED(ENTRY_BADGE))         set_menu_text(ENTRY_BADGE, config.video.mirror_badge ? "MIRRORED (ORIGINAL)" : "FIXED");
         }
         else if (menu_selected == &menu_musictest)
         {
@@ -1023,8 +1272,19 @@ void Menu::redefine_keyboard()
 
 void Menu::redefine_joystick()
 {
+#ifdef __DREAMCAST__
+    // One gear button: it is the gear-up button (padconfig[3]), so skip
+    // gear down. Automatic: skip both. Coin is unused (always free play).
+    if (redef_state == 2 && config.controls.gear != config.controls.GEAR_SEPARATE)
+        redef_state++;
+    if (redef_state == 3 && config.controls.gear == config.controls.GEAR_AUTO)
+        redef_state++;
+    if (redef_state == 5)
+        redef_state++;
+#else
     if (redef_state == 3 && config.controls.gear != config.controls.GEAR_SEPARATE) // Skip redefine of second gear press
         redef_state++;
+#endif
 
     switch (redef_state)
     {
@@ -1036,15 +1296,26 @@ void Menu::redefine_joystick()
         case 5:
         case 6:
         case 7:
+#ifdef __DREAMCAST__
+            if (redef_state == 3 && config.controls.gear != config.controls.GEAR_SEPARATE)
+                draw_text("PRESS SHIFT");       // one-button gear: toggles low/high
+            else
+#endif
             draw_text(text_redefine.at(redef_state + 4));
             // Analog controls enabled (Accelerator & Brake): Read axis being pressed
             if (config.controls.analog == 1 && (redef_state == 0 || redef_state == 1))
             {
+                const bool inverted = input.axis_config_inverted();
                 int last_axis = input.get_axis_config();
 
-                if (last_axis != -1)
+                // The brake can't be the axis just given to the accelerator
+                // (it may still be held down)
+                if (last_axis != -1 && !(redef_state == 1 && last_axis == config.controls.axis[1]))
                 {
                     config.controls.axis[redef_state + 1] = last_axis;
+                    // Pedals that go negative when pressed (the Dreamcast
+                    // triggers) need inverting
+                    config.controls.invert[redef_state + 1] = inverted;
                     redef_state++;
                 }
             }
@@ -1057,6 +1328,7 @@ void Menu::redefine_joystick()
             break;
 
         case 8:
+            input.end_axis_capture();
             state = STATE_MENU;
             break;
     }
@@ -1082,14 +1354,14 @@ bool Menu::check_jap_roms()
 // Reinitalize Video, and stop audio to avoid crackles
 void Menu::restart_video()
 {
-    if (config.sound.enabled)
+    if (config.audio_running())
         cannonball::audio.stop_audio();
 
     video.disable();
     video.init(&roms, &config.video);
 
     osoundint.init();
-    if (config.sound.enabled)
+    if (config.audio_running())
         cannonball::audio.start_audio();
 }
 
@@ -1141,6 +1413,9 @@ void Menu::start_game(int mode, int settings)
         config.engine.new_attract   = 0;
         config.engine.fix_bugs      = 0;
         config.sound.preview        = 0;
+#ifdef __DREAMCAST__
+        config.sound.custom_music   = 0;    // the arcade's own music
+#endif
 
         restart_video();
     }

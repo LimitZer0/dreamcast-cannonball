@@ -51,6 +51,11 @@ public:
 	void blit_text2(uint32_t);
     void blit_text_big(const uint8_t Y, const char* text, bool do_notes = false);
     void blit_text_new(uint16_t, uint16_t, const char* text, uint16_t col = GREY);
+    // Centred on the screen; a line with an odd number of characters is
+    // shifted half a character (Dreamcast renderer) so it sits exactly central
+    void blit_text_centre(uint16_t y, const char* text, uint16_t col = GREY);
+    // Column for centred text of this length (and sets the row's half-character shift)
+    uint16_t centre_x(uint16_t y, int length);
     void blit_speed(uint32_t, uint16_t);
     void blit_large_digit(uint32_t*, uint8_t);
 	void draw_copyright_text();

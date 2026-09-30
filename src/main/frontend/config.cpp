@@ -31,6 +31,8 @@
 
 #ifdef __DREAMCAST__
 #include "vmu.hpp"
+#include "timeattack.hpp"
+#include "engine/ostats.hpp"
 #endif
 #include "../utils.hpp"
 
@@ -233,9 +235,14 @@ void Config::load()
 {
     DC_TRACE("cannonball: Config::load cfg=%s\n", data.cfg_file.c_str());
 #ifdef __DREAMCAST__
+    // The disc's config.xml is kept after the first read: RESET SETTINGS
+    // uses it again without touching the drive (the music may be streaming)
+    static std::string dc_xml_cache;
     std::string dc_xml;
     bool dc_loaded_from_pc = false;
-    if (!dc_read_file(data.cfg_file, dc_xml))
+    if (skip_vmu && !dc_xml_cache.empty())
+        dc_xml = dc_xml_cache;
+    else if (!dc_read_file(data.cfg_file, dc_xml))
     {
         DC_TRACE("cannonball: Config::load failed to read %s\n", data.cfg_file.c_str());
         if (data.cfg_file == "/cd/config.xml" && dc_read_file("/pc/config.xml", dc_xml))
@@ -277,11 +284,16 @@ void Config::load()
     menu.enabled           = dc_xml_int(dc_xml, "menu.enabled", 1);
     menu.road_scroll_speed = dc_xml_int(dc_xml, "menu.roadspeed", 50);
 
-    video.mode       = dc_xml_int(dc_xml, "video.mode", 2);
+    video.mode       = dc_xml_int(dc_xml, "video.mode", 1);
+    if (video.mode == video_settings_t::MODE_STRETCH) video.mode = video_settings_t::MODE_FULL;   // FULL removed
     video.scale      = dc_xml_int(dc_xml, "video.window.scale", 1);
     video.scanlines  = dc_xml_int(dc_xml, "video.scanlines", 0);
     video.fps        = dc_xml_int(dc_xml, "video.fps", 2);
     video.fps_count  = dc_xml_int(dc_xml, "video.fps_counter", 0);
+    video.crt        = dc_xml_int(dc_xml, "video.crt_frame", 0);
+    video.mirror_badge = dc_xml_int(dc_xml, "video.mirror_car_badge", 0) != 0;
+    video.vmu_anim   = dc_xml_int(dc_xml, "video.vmu_animation", 1) != 0;
+    if (video.crt < 0 || video.crt > 2) video.crt = 0;
     video.widescreen = dc_xml_int(dc_xml, "video.widescreen", 1);
     video.hires      = dc_xml_int(dc_xml, "video.hires", 0);
     video.filtering  = dc_xml_int(dc_xml, "video.filtering", 0);
@@ -293,6 +305,7 @@ void Config::load()
     sound.advertise   = dc_xml_int(dc_xml, "sound.advertise", 1);
     sound.preview     = dc_xml_int(dc_xml, "sound.preview", 1);
     sound.fix_samples = dc_xml_int(dc_xml, "sound.fix_samples", 1);
+    sound.custom_music = dc_xml_int(dc_xml, "sound.use_music_files", 0);
     sound.music_timer = dc_xml_int(dc_xml, "sound.music_timer", 0);
     if (sound.rate > 11025)
         sound.rate = 11025;
@@ -356,18 +369,20 @@ void Config::load()
     controls.min_force     = dc_xml_int(dc_xml, "controls.analog.haptic.min_force", 8500);
     controls.force_duration= dc_xml_int(dc_xml, "controls.analog.haptic.force_duration", 20);
 
-    engine.dip_time      = dc_xml_int(dc_xml, "engine.time",    0);
+    engine.dip_time      = dc_xml_int(dc_xml, "engine.time",    1);  // Normal: score x1.00
     engine.dip_traffic   = dc_xml_int(dc_xml, "engine.traffic", 1);
     engine.freeze_timer    = engine.dip_time == 4;
     engine.disable_traffic = engine.dip_traffic == 4;
     engine.dip_time    &= 3;
     engine.dip_traffic &= 3;
 
-    engine.freeplay      = dc_xml_int(dc_xml, "engine.freeplay",        0) != 0;
+    engine.freeplay      = true;    // Dreamcast: always free play (START plays the coin sound)
     engine.jap           = dc_xml_int(dc_xml, "engine.japanese_tracks", 0);
     engine.prototype     = dc_xml_int(dc_xml, "engine.prototype",       0);
     engine.level_objects   = dc_xml_int(dc_xml, "engine.levelobjects", 1);
     engine.randomgen       = dc_xml_int(dc_xml, "engine.randomgen",    1);
+    engine.score_scaling   = dc_xml_int(dc_xml, "engine.scorescaling", 1);
+    engine.speed_mph       = dc_xml_int(dc_xml, "engine.speedmph", 0);
     engine.fix_bugs_backup =
     engine.fix_bugs        = dc_xml_int(dc_xml, "engine.fix_bugs",     1) != 0;
     engine.fix_timer       = dc_xml_int(dc_xml, "engine.fix_timer",    0) != 0;
@@ -393,7 +408,10 @@ void Config::load()
     ttrial.laps    = dc_xml_int(dc_xml, "time_trial.laps",    5);
     ttrial.traffic = dc_xml_int(dc_xml, "time_trial.traffic", 3);
     cont_traffic   = dc_xml_int(dc_xml, "continuous.traffic", 3);
-    vmu_load_config();
+    if (dc_xml_cache.empty())
+        dc_xml_cache = dc_xml;
+    if (!skip_vmu)
+        vmu_load_config();
     DC_TRACE("cannonball: Config::load dreamcast parser done\n");
     return;
 #else
@@ -565,6 +583,8 @@ void Config::load()
     // Additional Level Objects
     engine.level_objects   = pt_config.get("engine.levelobjects", 1);
     engine.randomgen       = pt_config.get("engine.randomgen",    1);
+    engine.score_scaling   = pt_config.get("engine.scorescaling", 1);
+    engine.speed_mph       = pt_config.get("engine.speedmph", 0);
     engine.fix_bugs_backup = 
     engine.fix_bugs        = pt_config.get("engine.fix_bugs",     1) != 0;
     engine.fix_timer       = pt_config.get("engine.fix_timer",    0) != 0;
@@ -658,6 +678,8 @@ bool Config::save()
     pt_config.put("engine.japanese_tracks", engine.jap);
     pt_config.put("engine.prototype",       engine.prototype);
     pt_config.put("engine.levelobjects",    engine.level_objects);
+    pt_config.put("engine.scorescaling",    engine.score_scaling);
+    pt_config.put("engine.speedmph",        engine.speed_mph);
     pt_config.put("engine.fix_bugs",        (int) engine.fix_bugs);
     pt_config.put("engine.fix_timer",       (int) engine.fix_timer);
     pt_config.put("engine.new_attract",     engine.new_attract);
@@ -688,6 +710,16 @@ bool Config::save()
 #endif
 }
 
+#ifdef __DREAMCAST__
+// Which of the VMU high score tables the current settings use (see vmu.hpp)
+static int score_list(bool original_mode)
+{
+    return (config.engine.jap ? 1 : 0) |
+           (original_mode ? 0 : 2) |
+           (OStats::assists_enabled() ? 4 : 0);
+}
+#endif
+
 void Config::load_scores(bool original_mode)
 {
     std::string filename;
@@ -698,7 +730,7 @@ void Config::load_scores(bool original_mode)
         filename = engine.jap ? data.file_cont_jap : data.file_cont;
 
 #ifdef __DREAMCAST__
-    vmu_load_scores();
+    vmu_load_scores(score_list(original_mode));
 #else
     // Create empty property tree object
     ptree pt;
@@ -745,7 +777,7 @@ void Config::save_scores(bool original_mode)
         filename = engine.jap ? data.file_cont_jap : data.file_cont;
 
 #ifdef __DREAMCAST__
-    vmu_save_scores();
+    vmu_save_scores(score_list(original_mode));
 #else
     // Create empty property tree object
     ptree pt;
@@ -841,15 +873,13 @@ void Config::save_tiletrial_scores()
 bool Config::clear_scores()
 {
 #ifdef __DREAMCAST__
+    // Score tables and time trial times only; settings are kept
     const bool cleared = vmu_clear_scores();
+    const bool tt      = timeattack::clear();
 
-    data.cfg_file = "/cd/config.xml";
-    load();
-
-    // Restore the in-memory arcade table after clearing the VMU save.
     ohiscore.init_def_scores();
 
-    return cleared;
+    return cleared || tt;
 #else
     // Init Default Hiscores
     ohiscore.init_def_scores();
@@ -869,6 +899,23 @@ bool Config::clear_scores()
 #endif
 }
 
+#ifdef __DREAMCAST__
+// Settings back to config.xml on the disc, saved to the memory card. Scores,
+// time trial times and the rainbow colour unlock are kept.
+bool Config::reset_settings()
+{
+    const bool rainbow = engine.rainbow_unlocked;
+    const int  old_fps = video.fps;
+    skip_vmu = true;
+    load();
+    skip_vmu = false;
+    engine.rainbow_unlocked = rainbow;
+    if (video.fps != old_fps)
+        set_fps(video.fps);
+    return vmu_clear_config();
+}
+#endif
+
 void Config::set_fps(int fps)
 {
     video.fps = fps;
@@ -880,10 +927,10 @@ void Config::set_fps(int fps)
 
     cannonball::frame_ms = 1000.0 / this->fps;
 
-    if (config.sound.enabled)
+    if (audio_running())
         cannonball::audio.stop_audio();
     osoundint.init();
-    if (config.sound.enabled)
+    if (audio_running())
         cannonball::audio.start_audio();
 }
 

@@ -288,11 +288,71 @@ void OSprites::clear_palette_data()
 // Output:         None
 //
 
+// Rainbow car: cycle the body colours of its 5 palettes through the hues,
+// rewriting them in palette RAM wherever they are currently mapped
+void OSprites::rainbow_car()
+{
+    static uint16_t hue = 0;                // 0 - 1535 (6 segments of 256)
+    hue = (hue + 12) % 1536;       // about 4 seconds per cycle
+    const int seg = hue >> 8, t = hue & 0xFF;
+    int c[3];                               // r, g, b 0-255
+    switch (seg)
+    {
+        case 0:  c[0] = 255;     c[1] = t;       c[2] = 0;       break;
+        case 1:  c[0] = 255 - t; c[1] = 255;     c[2] = 0;       break;
+        case 2:  c[0] = 0;       c[1] = 255;     c[2] = t;       break;
+        case 3:  c[0] = 0;       c[1] = 255 - t; c[2] = 255;     break;
+        case 4:  c[0] = t;       c[1] = 0;       c[2] = 255;     break;
+        default: c[0] = 255;     c[1] = 0;       c[2] = 255 - t; break;
+    }
+    // Same shading as the red car: dark to light, paler towards the top
+    static const int HI[6] = { 8, 10, 12, 13, 13, 13 }, LO[6] = { 0, 3, 5, 6, 8, 10 };
+    uint16_t body[6];
+    for (int i = 0; i < 6; i++)
+    {
+        int n[3];
+        for (int k = 0; k < 3; k++)
+            n[k] = LO[i] + ((HI[i] - LO[i]) * c[k] + 127) / 255;
+        body[i] = (uint16_t)((n[2] << 8) | (n[1] << 4) | n[0]);
+        rainbow_body[i] = body[i];
+    }
+    for (int p = 0; p < 5; p++)
+    {
+        const uint8_t hw = pal_lookup[OFerrari::PAL_RAINBOW + p];
+        if (!hw) continue;
+        const uint32_t base = PAL_SPRITES + (hw << 5);
+        if (p < 4)
+        {
+            uint32_t dst = base + 2;            // words 1-6: body
+            for (int i = 0; i < 6; i++) video.write_pal16(&dst, body[i]);
+        }
+        else
+        {
+            uint32_t dst = base + 22;           // flip palette: words 11-14 = body 6, 5, 4, 3
+            for (int i = 5; i >= 2; i--) video.write_pal16(&dst, body[i]);
+        }
+    }
+}
+
+void OSprites::car_body_colours(uint16_t pal_src, uint16_t out[7])
+{
+    if (pal_src == OFerrari::PAL_RAINBOW)
+    {
+        for (int i = 0; i < 6; i++) out[i] = rainbow_body[i];
+        out[6] = 0x0ddd;
+        return;
+    }
+    // Words 1-7 of the palette (two words per 32-bit entry)
+    const uint32_t* p = &PALETTE_EXPANSION[pal_src * 8];
+    for (int i = 0; i < 7; i++)
+    {
+        const int w = i + 1;
+        out[i] = (uint16_t)((w & 1) ? (p[w >> 1] & 0xFFFF) : (p[w >> 1] >> 16));
+    }
+}
+
 void OSprites::copy_palette_data()
 {
-    // Return if no palette entries to copy
-    if (pal_copy_count <= 0) return;
-
     for (int16_t i = 0; i < pal_copy_count * 2;)
     {
         // Palette Data Source Offset (aligned to start of 32 byte boundry, * 32)
@@ -302,6 +362,10 @@ void OSprites::copy_palette_data()
             video.write_pal32(&dst_addr, PALETTE_EXPANSION[src_addr++]);
     }
     pal_copy_count = 0; // All entries copied
+
+    // After the copy, so a newly mapped rainbow palette is recoloured too
+    if (config.engine.car_pal == 8)
+        rainbow_car();
 }
 
 // Map Palettes from ROM to Palette RAM for a particular sprite.

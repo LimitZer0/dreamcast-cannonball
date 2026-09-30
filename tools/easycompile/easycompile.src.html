@@ -1,0 +1,280 @@
+<!doctype html>
+<!--
+  EasyCompile: makes a CannonBall (OutRun) disc image for the Dreamcast from
+  the player's own ROMs, in the browser. Nothing is uploaded.
+
+  Source file: make_tool.py builds easycompile.html from it by inlining
+  easycompile_core.js and the finished game (1ST_READ.BIN, IP.BIN,
+  config.xml, res/) plus the CDI layout.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EasyCompile</title>
+<style>
+:root { --bg:#10131f; --panel:#1a1f33; --line:#2c3352; --text:#e8ecf8; --muted:#97a0bf; --accent:#ffcf3f; --hot:#ff5c7a; --ok:#53d99a;
+        color-scheme:dark; }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+header { background:linear-gradient(180deg,#ff8a3d 0%,#ff4f7b 55%,#6d3bd2 100%); color:#fff; padding:22px 16px 18px; text-align:center; }
+header h1 { margin:0; font-size:clamp(26px,5vw,36px); letter-spacing:.04em; text-shadow:0 2px 0 rgba(0,0,0,.25); }
+header p { margin:4px 0 0; opacity:.92; }
+main { max-width:760px; margin:0 auto; padding:16px; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+h2 { font-size:18px; margin:0 0 8px; }
+.note { color:var(--muted); font-size:14px; }
+.err { color:var(--hot); } .ok { color:var(--ok); }
+.drop { border:2px dashed var(--line); border-radius:10px; padding:16px; text-align:center; cursor:pointer; margin-top:8px; }
+.drop.over { border-color:var(--accent); }
+button, a.btn { display:inline-block; font:inherit; font-weight:700; background:var(--accent); color:#1d1300; border:0; border-radius:8px; padding:10px 18px; cursor:pointer; text-decoration:none; margin-top:8px; }
+button:disabled { opacity:.45; cursor:default; }
+button.small { font-size:13px; padding:4px 10px; margin:0 0 0 8px; background:transparent; color:var(--muted); border:1px solid var(--line); font-weight:600; }
+.tracks { list-style:none; padding:0; margin:8px 0 0; }
+.tracks li { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.tracks li:last-child { border-bottom:0; }
+.tracks .t { flex:1 1 180px; }
+.tracks .f { color:var(--muted); font-size:14px; word-break:break-all; }
+.tracks label.pick { font-size:14px; font-weight:600; color:var(--accent); cursor:pointer; }
+progress { width:100%; height:10px; margin-top:10px; accent-color:var(--accent); }
+details { margin-top:6px; } summary { cursor:pointer; color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+    <h1>EasyCompile</h1>
+    <p>Make a CannonBall (OutRun) disc for your Dreamcast</p>
+</header>
+<main>
+<div class="panel">
+    <h2>1. Your OutRun ROMs</h2>
+    <p class="note" style="margin-top:0">Drop your OutRun (revision B) ROM zip here, or the ROM files themselves.
+    File names don't matter; each file is checked by its contents. ROMs aren't included: you need your own.</p>
+    <div id="romdrop" class="drop" tabindex="0">Drop a ROM zip or files, or click to choose</div>
+    <input type="file" id="romfile" multiple hidden>
+    <p id="rommsg" class="note"></p>
+</div>
+
+<div class="panel">
+    <h2>2. Your music (optional)</h2>
+    <p class="note" style="margin-top:0">Replace any of the four tunes with your own songs (MP3, OGG, WAV, FLAC or M4A).
+    In the game, choose SETTINGS › SOUND › MUSIC SOURCE. Tunes you leave empty play the original music.</p>
+    <ul class="tracks" id="tracks"></ul>
+</div>
+
+<div class="panel">
+    <h2>3. Make the disc</h2>
+    <button id="make" disabled>Make disc</button>
+    <p id="msg" class="note"></p>
+    <progress id="prog" value="0" max="1" hidden></progress>
+    <div id="out" hidden>
+        <a class="btn" id="dl" download="cannonball.cdi">Download cannonball.cdi</a>
+        <p class="note">Play it in Flycast, copy it to a GDEMU (or similar), or burn it to a CD-R.
+        Your settings and high scores save to the memory card.</p>
+    </div>
+</div>
+<p class="note">Everything happens on this page; nothing is uploaded. Game version: __VERSION__.</p>
+</main>
+
+<script id="core">
+__CORE_JS__
+</script>
+
+<script>
+(() => {
+    const EMBED = {
+        game: '__GAME_GZ__',        // gzip + base64 of {path: data} pack (see make_tool.py)
+        render: '__RENDER_GZ__',    // gzip + base64 of wasm/cbrender.js (the recording tool)
+    };
+    const TITLES = ['Magical Sound Shower', 'Passing Breeze', 'Splash Wave', 'Last Wave (high score screen)'];
+    const $ = (id) => document.getElementById(id);
+    const fromB64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    async function gunzip(b64) {
+        const stream = new Blob([fromB64(b64)]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    // Pack: u32 count, then per file: u16 name length, name, u32 size, data
+    function unpack(b) {
+        const out = {}, dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+        let p = 4;
+        for (let n = dv.getUint32(0, true); n > 0; n--) {
+            const nl = dv.getUint16(p, true); p += 2;
+            const name = new TextDecoder().decode(b.subarray(p, p + nl)); p += nl;
+            const sz = dv.getUint32(p, true); p += 4;
+            out[name] = b.subarray(p, p + sz); p += sz;
+        }
+        return out;
+    }
+    const setMsg = (el, text, cls) => { el.innerHTML = ''; const s = document.createElement('span'); if (cls) s.className = cls; s.textContent = text; el.appendChild(s); };
+
+    // --- ROMs ---------------------------------------------------------------
+    let roms = new Map(), busy = false;
+    const romMsg = () => {
+        const st = EasyCore.romStatus(roms);
+        const el = $('rommsg');
+        if (!roms.size) { el.textContent = ''; return; }
+        if (st.missing.length) {
+            setMsg(el, `Found ${st.required - st.missing.length} of ${st.required} ROMs. Missing: ${st.missing.join(', ')}`, 'err');
+        } else {
+            setMsg(el, `All ${st.required} ROMs found.` + (st.jap ? ' Japanese tracks included.' : '') +
+                         (st.fixedSound ? ' Fixed sound ROM included.' : ''), 'ok');
+        }
+        update();
+    };
+    const addRoms = async (fileList) => {
+        const files = [];
+        for (const f of fileList) files.push({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) });
+        try {
+            const r = await EasyCore.collectRoms(files, roms);
+            roms = r.found;
+            romMsg();
+            if (!roms.size) setMsg($('rommsg'), files.some(f => /\.(7z|rar)$/i.test(f.name))
+                ? "7z and rar files can't be read here: unpack it first, then drop the files (or a .zip)."
+                : "No OutRun ROMs found in that. It needs the revision B set (a zip usually called outrun.zip).", 'err');
+        } catch (e) { setMsg($('rommsg'), e.message, 'err'); }
+    };
+    const dropZone = (zone, input, onFiles) => {
+        zone.addEventListener('click', () => input.click());
+        zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') input.click(); });
+        input.addEventListener('change', () => { onFiles(input.files); input.value = ''; });
+        ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('over'); }));
+        ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('over'); }));
+        zone.addEventListener('drop', e => onFiles(e.dataTransfer.files));
+    };
+    dropZone($('romdrop'), $('romfile'), addRoms);
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => e.preventDefault());
+
+    // --- Music --------------------------------------------------------------
+    const songs = [null, null, null, null];
+    TITLES.forEach((t, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="t">${i + 1}. ${t}</span><span class="f" id="song${i}">original</span>
+            <label class="pick">Choose…<input type="file" accept="audio/*,.mp3,.ogg,.wav,.flac,.m4a" hidden id="songfile${i}"></label>
+            <button class="small" id="songclear${i}" hidden>Remove</button>`;
+        $('tracks').appendChild(li);
+        const input = li.querySelector('input');
+        input.addEventListener('change', () => { if (input.files[0]) { songs[i] = input.files[0]; $('song' + i).textContent = input.files[0].name; $('songclear' + i).hidden = false; } input.value = ''; });
+        li.addEventListener('dragover', e => e.preventDefault());
+        li.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); const f = e.dataTransfer.files[0]; if (f) { songs[i] = f; $('song' + i).textContent = f.name; $('songclear' + i).hidden = false; } });
+        $('songclear' + i).addEventListener('click', () => { songs[i] = null; $('song' + i).textContent = 'original'; $('songclear' + i).hidden = true; });
+    });
+    async function encodeSong(file) {
+        const ctx = new OfflineAudioContext(2, 1, 44100);   // decodes and resamples to 44.1 kHz
+        let buf;
+        try { buf = await ctx.decodeAudioData(await file.arrayBuffer()); }
+        catch (e) { throw new Error(`${file.name}: this browser can't read that file. Try an MP3.`); }
+        const l = buf.getChannelData(0), r = buf.numberOfChannels > 1 ? buf.getChannelData(1) : l;
+        return EasyCore.adpcmWav(EasyCore.toInt16(l), EasyCore.toInt16(r));
+    }
+
+    // --- Recording the original music and FM effects ----------------------
+    // Runs the game's own sound code (wasm/cbrender.js, the same program as
+    // tools/render_audio.sh) in a worker, once per tune/effect, as
+    // build-dc/make_cdi.sh does.
+    const JOBS = [['music', '0x85', 'orig/1'], ['music', '0x81', 'orig/2'], ['music', '0x82', 'orig/3'],
+                  ['music', '0xA5', 'orig/4'], ['sfx', '0x84', 'sfx/84'], ['sfx', '0x86', 'sfx/86'],
+                  ['sfx', '0x94', 'sfx/94'], ['sfx', '0x95', 'sfx/95'], ['sfx', '0x99', 'sfx/99'], ['sfx', '0x9B', 'sfx/9B']];
+    const WORKER = `
+        onmessage = async (e) => {
+            const { roms, res, config, fix, jobs } = e.data;
+            try {
+                for (const [mode, cmd, key] of jobs) {
+                    const m = await CBRender({ print: () => {}, printErr: () => {},
+                        preRun: [mod => Object.assign(mod.ENV, { CB_RENDER: mode, CB_CMD: cmd, CB_OUT: '/w/out.wav', CB_FIX: fix })] });
+                    m.FS.mkdirTree('/w/roms'); m.FS.mkdirTree('/w/res');
+                    for (const n in roms) m.FS.writeFile('/w/roms/' + n, roms[n]);
+                    for (const n in res) m.FS.writeFile('/w/res/' + n, res[n]);
+                    m.FS.writeFile('/w/config.xml', config);
+                    m.FS.chdir('/w');
+                    const rc = m._cb_run();
+                    if (rc !== 0 || !m.FS.analyzePath('/w/out.wav').exists) throw new Error('recording ' + cmd + ' failed (' + rc + ')');
+                    const wav = m.FS.readFile('/w/out.wav', { encoding: 'binary' });
+                    const loop = m.FS.analyzePath('/w/out.wav.loop').exists ? m.FS.readFile('/w/out.wav.loop', { encoding: 'utf8' }) : null;
+                    postMessage({ key, wav, loop }, [wav.buffer]);
+                }
+                postMessage({ done: true });
+            } catch (err) { postMessage({ error: String(err && err.message || err) }); }
+        };`;
+    async function record(game, onEach) {
+        const src = new TextDecoder().decode(await gunzip(EMBED.render));
+        const wurl = URL.createObjectURL(new Blob([src, WORKER], { type: 'text/javascript' }));
+        const w = new Worker(wurl);
+        const text = new TextDecoder().decode(game['config.xml']);
+        const config = text.replace(/\/cd\/roms\//g, '/w/roms/').replace(/\/cd\/res\//g, '/w/res/');
+        const fix = (text.match(/<fix_samples>(\d)<\/fix_samples>/) || [0, '1'])[1];
+        const res = {};
+        for (const k in game) if (k.startsWith('res/')) res[k.slice(4)] = game[k];
+        const out = {};
+        try {
+            await new Promise((resolve, reject) => {
+                w.onmessage = (e) => {
+                    const d = e.data;
+                    if (d.error) reject(new Error(d.error));
+                    else if (d.done) resolve();
+                    else { out[d.key] = d; onEach(Object.keys(out).length, JOBS.length); }
+                };
+                w.onerror = (e) => reject(new Error(e.message || 'recording failed'));
+                w.postMessage({ roms: Object.fromEntries(roms), res, config, fix, jobs: JOBS });
+            });
+        } finally { w.terminate(); URL.revokeObjectURL(wurl); }
+        return out;
+    }
+
+    // --- Make ----------------------------------------------------------------
+    const update = () => { $('make').disabled = busy || !roms.size || EasyCore.romStatus(roms).missing.length > 0; };
+    let url = null;
+    $('make').addEventListener('click', async () => {
+        busy = true; update();
+        $('out').hidden = true; if (url) URL.revokeObjectURL(url);
+        const prog = $('prog'); prog.hidden = false; prog.value = 0;
+        const step = (t, v) => { setMsg($('msg'), t); prog.value = v; return new Promise(r => setTimeout(r, 0)); };
+        try {
+            await step('Unpacking the game…', 0.05);
+            const game = unpack(await gunzip(EMBED.game));
+            const tree = { res: {}, roms: {} };
+            for (const [path, data] of Object.entries(game)) {
+                if (path === 'IP.BIN' || path.startsWith('cdi/')) continue;
+                const parts = path.split('/');
+                if (parts.length === 1) tree[path] = data; else tree[parts[0]][parts[1]] = data;
+            }
+            for (const [name, data] of roms) tree.roms[name] = data;
+            await step('Recording the original music and sound effects from your ROMs…', 0.08);
+            const t0 = Date.now();
+            const rec = await record(game, (i, total) => step(`Recording the original music and sound effects (${i} of ${total})…`, 0.08 + 0.5 * i / total));
+            tree.music = { orig: {} }; tree.sfx = {};
+            for (const [key, r] of Object.entries(rec)) {
+                const [dir, name] = key.split('/');
+                if (dir === 'orig') {
+                    const pcm = EasyCore.readPcmWav(r.wav);
+                    tree.music.orig[name + '.wav'] = EasyCore.adpcmWav(pcm.left, pcm.right, pcm.rate);
+                    if (r.loop !== null) tree.music.orig[name + '.wav.loop'] = new TextEncoder().encode(r.loop);
+                } else tree.sfx[name + '.wav'] = r.wav;
+            }
+            const recSecs = ((Date.now() - t0) / 1000).toFixed(0);
+            const n = songs.filter(Boolean).length;
+            let k = 0;
+            for (let i = 0; i < 4; i++) if (songs[i]) {
+                await step(`Converting song ${++k} of ${n} (${songs[i].name})…`, 0.6 + 0.15 * (k - 1) / n);
+                tree.music[(i + 1) + '.wav'] = await encodeSong(songs[i]);
+            }
+            await step('Building the disc…', 0.75);
+            const iso = EasyCore.buildIso(tree, game['IP.BIN'], 'CANNONBALL');
+            await step('Writing the disc image…', 0.85);
+            const cdi = EasyCore.buildCdi(iso, { prefix: game['cdi/prefix'], gapTail: game['cdi/gaptail'], header: game['cdi/header'] });
+            url = URL.createObjectURL(new Blob([cdi], { type: 'application/octet-stream' }));
+            $('dl').href = url;
+            prog.value = 1;
+            setMsg($('msg'), `Done: ${(cdi.length / 1048576).toFixed(1)} MB (recording took ${recSecs} s).`, 'ok');
+            $('out').hidden = false;
+        } catch (e) {
+            setMsg($('msg'), e.message || String(e), 'err');
+        }
+        prog.hidden = true;
+        busy = false; update();
+    });
+})();
+</script>
+</body>
+</html>

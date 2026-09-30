@@ -240,6 +240,7 @@ private:
     void init_attract();
     void tick_attract();
     void check_freeplay_start();
+    bool rainbow_notice = false;   // show NEW COLOR UNLOCKED! on the course map
 };
 
 extern Outrun outrun;

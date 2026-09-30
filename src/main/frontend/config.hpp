@@ -73,6 +73,9 @@ struct video_settings_t
     int filtering;
     int vsync;
     int shadow;
+    int crt = 0;            // Dreamcast CRT FRAME: 0 off, 1 rounded corners, 2 corners + edge shade
+    int vmu_anim = 1;       // Dreamcast: 1 = animation on the VMU screens
+    int mirror_badge = 0;   // Dreamcast: 1 = the car's badge/plate mirror when turning left (as the arcade)
 };
 
 struct sound_settings_t
@@ -83,6 +86,7 @@ struct sound_settings_t
     int preview;
     int fix_samples;
     int music_timer;
+    int custom_music;   // Dreamcast: music source. 0 = original, 1 = your /cd/music files, 2 = off
     std::vector <music_t> music;
 };
 
@@ -141,6 +145,16 @@ struct engine_settings_t
     bool bumper;          // Handling: Smash into other cars without spinning
     bool turbo;           // Handling: Faster Car
     int car_pal;          // Car Palette
+    // Rainbow car colour: earned by reaching a goal in the arcade game at a
+    // score multiplier of x1.00 or more (saved on the VMU). Always available
+    // on other platforms.
+#ifdef __DREAMCAST__
+    bool rainbow_unlocked = false;
+#else
+    bool rainbow_unlocked = true;
+#endif
+    int score_scaling;    // Scale scores by difficulty (Dreamcast addition)
+    int speed_mph;        // Show speed in MPH instead of km/h (Dreamcast addition)
 };
 
 class Config
@@ -154,6 +168,10 @@ public:
     engine_settings_t      engine;
     ttrial_settings_t      ttrial;
     smartypi_settings_t    smartypi;
+
+    // Online leaderboard page, from the leaderboard pass on a memory card
+    // (leaderboard::load_pass). Empty = no leaderboard.
+    std::string leaderboard_url;
 	
 	const static int CABINET_MOVING  = 0;
 	const static int CABINET_UPRIGHT = 1;
@@ -185,7 +203,19 @@ public:
     void load_tiletrial_scores();
     void save_tiletrial_scores();
     bool clear_scores();
+#ifdef __DREAMCAST__
+    bool reset_settings();
+    bool skip_vmu = false;
+#endif
     void set_fps(int fps);
+
+    // Is the audio device running? On Dreamcast it always is: the SOUND FX
+    // setting (sound.enabled) only mutes the effects, the music keeps playing.
+#ifdef __DREAMCAST__
+    bool audio_running() const { return true; }
+#else
+    bool audio_running() const { return sound.enabled != 0; }
+#endif
     void inc_time();
     void inc_traffic();
    

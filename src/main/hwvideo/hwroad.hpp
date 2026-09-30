@@ -1,6 +1,9 @@
 #pragma once
 
 #include "stdint.hpp"
+#ifdef DREAMCAST_PVR_RENDERER
+#include "dreamcast/pvr_road.hpp"
+#endif
 
 class HWRoad
 {
@@ -16,6 +19,14 @@ public:
     void write_road_control(const uint8_t);
     void (HWRoad::*render_background)(uint16_t*);
     void (HWRoad::*render_foreground)(uint16_t*);
+
+#ifdef DREAMCAST_PVR_RENDERER
+    // Dreamcast: draw road foreground lines straight to RGB565 using
+    // run-length spans (see dreamcast/pvr_road.cpp). Sets line_mask[y] = 1
+    // for each line written.
+    void render_foreground_rgb565(const uint16_t* lut, uint16_t* out, uint8_t* line_mask);
+    void foreground_coverage(uint8_t* line_mask);
+#endif
   
 private:
     uint8_t road_control;
@@ -33,6 +44,10 @@ private:
     // Two halves of RAM
     uint16_t ram[ROAD_RAM_SIZE / 2];
     uint16_t ramBuff[ROAD_RAM_SIZE / 2];
+
+#ifdef DREAMCAST_PVR_RENDERER
+    pvrroad::RunTable road_runs;
+#endif
 
     void decode_road(const uint8_t*);
     void render_background_lores(uint16_t*);

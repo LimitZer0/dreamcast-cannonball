@@ -30,6 +30,9 @@ Input::Input(void)
 
     gamepad = false;
     rumble_supported = false;
+    axis_rest_valid = false;
+    axis_config_inv = false;
+    trig_acc = trig_brake = false;
 }
 
 Input::~Input(void)
@@ -244,12 +247,33 @@ void Input::handle_controller_axis(SDL_ControllerAxisEvent* evt)
 
 void Input::handle_axis(const uint8_t ax, const int16_t value)
 {
+    // Redefining the pedals: works in any analog mode
+    if (axis_rest_valid)
+        store_last_axis(ax, value);
+
+    // Analog pedals in the digital pedal modes (analog off, or wheel only):
+    // pressing one past halfway works like its button. The Dreamcast
+    // controller's triggers are axes, not buttons.
+    if (analog != 1 && (ax == axis[1] || ax == axis[2]))
+    {
+        const bool acc = ax == axis[1];
+        const int  v   = scale_trigger(invert[acc ? 1 : 2] ? -value : value);
+        const bool on  = v > 0x80;
+        bool& state    = acc ? trig_acc : trig_brake;
+        if (on != state)
+        {
+            state = on;
+            keys[acc ? ACCEL : BRAKE] = on;
+        }
+    }
+
     // Analog Controls
     if (analog)
     {
         int workingv = value;
         //std::cout << "ax: " << (int)ax << " value " << value << std::endl;
-        store_last_axis(ax, value);
+        if (!axis_rest_valid)
+            store_last_axis(ax, value);
 
         // Steering
         // OutRun requires values between 0x48 and 0xb8.
@@ -325,6 +349,20 @@ void Input::store_last_axis(const uint8_t ax, const int16_t value)
 {
     const static int CAP = SDL_JOYSTICK_AXIS_MAX / 4;
 
+    // Resting positions known: take the first axis moved over halfway from
+    // rest (a Dreamcast trigger rests at +32767 and goes negative when
+    // pressed, so the old press-release-press detection needed two pulls)
+    if (axis_rest_valid)
+    {
+        if (ax < MAX_AXES && axis_counter != 2 && std::abs((int)value - axis_rest[ax]) > 0x6000)
+        {
+            axis_config     = ax;
+            axis_config_inv = value < axis_rest[ax];
+            axis_counter    = 2;
+        }
+        return;
+    }
+
     if (std::abs(value) > CAP)
         axis_last = ax;
     else if (ax == axis_last)
@@ -357,6 +395,34 @@ void Input::reset_axis_config()
     axis_config = -1;
     axis_last = -1;
     axis_counter = 0;
+    axis_config_inv = false;
+}
+
+void Input::capture_axis_rest()
+{
+    reset_axis_config();
+    axis_rest_valid = false;
+    if (!stick) return;
+    const int n = SDL_JoystickNumAxes(stick);
+    for (int i = 0; i < MAX_AXES; i++)
+        axis_rest[i] = i < n ? SDL_JoystickGetAxis(stick, i) : 0;
+    axis_rest_valid = true;
+}
+
+void Input::end_axis_capture()
+{
+    axis_rest_valid = false;
+    reset_axis_config();
+}
+
+bool Input::accel_held()
+{
+    return keys[ACCEL] || (analog == 1 && a_accel > 0x80);
+}
+
+bool Input::brake_held()
+{
+    return keys[BRAKE] || (analog == 1 && a_brake > 0x80);
 }
 
 void Input::handle_joy_down(SDL_JoyButtonEvent* evt)
@@ -391,7 +457,9 @@ void Input::handle_joy(const uint8_t button, const bool is_pressed)
     if (button == pad_config[2])   keys[GEAR1]     = is_pressed;
     if (button == pad_config[3])   keys[GEAR2]     = is_pressed;
     if (button == pad_config[4])   keys[START]     = is_pressed;
-    if (button == pad_config[5])   keys[COIN]      = is_pressed;
+#ifndef __DREAMCAST__
+    if (button == pad_config[5])   keys[COIN]      = is_pressed;   // Dreamcast: always free play
+#endif
     if (button == pad_config[6])   keys[MENU]      = is_pressed;
     if (button == pad_config[7])   keys[VIEWPOINT] = is_pressed;
     if (button == pad_config[8])   keys[UP]        = is_pressed;

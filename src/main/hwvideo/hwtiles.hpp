@@ -15,6 +15,9 @@ public:
     };
 
     uint8_t text_ram[0x1000]; // Text RAM
+    // Per text row pixel shift (Dreamcast renderer), so a line with an odd
+    // number of characters can be centred on the screen. Reset with the text.
+    int8_t  text_row_xoff[32] = {0};
     uint8_t tile_ram[0x10000]; // Tile RAM
 
     hwtiles(void);
@@ -23,11 +26,26 @@ public:
     void init(uint8_t* src_tiles, const bool hires);
     void patch_tiles(RomLoader* patch);
     void restore_tiles();
+    // Menu text: '(' and ')' drawn into tiles 0x28/0x29 (HUD graphics the
+    // menu never shows) while on, the original tiles back while off
+    void set_menu_glyphs(bool on);
     void set_x_clamp(const uint16_t);
     void update_tile_values();
     void render_tile_layer(uint16_t*, uint8_t, uint8_t);
     void render_text_layer(uint16_t*, uint8_t);
     void render_all_tiles(uint16_t*);
+
+#ifdef DREAMCAST_PVR_RENDERER
+    // Read-only access for the Dreamcast PVR renderer (dreamcast/pvr_render.cpp)
+    const uint32_t* pvr_tiles() const  { return tiles; }
+    uint8_t pvr_text_bank() const      { return tile_banks[0]; }
+    uint16_t pvr_width() const         { return s16_width_noscale; }
+    // Incremented whenever the converted tile graphics change
+    uint32_t tiles_version;
+    // Lines (one byte each, S16_HEIGHT) that the road will cover completely;
+    // tile rows entirely inside them are not drawn. NULL = draw everything.
+    const uint8_t* skip_lines = nullptr;
+#endif
 
 private:
     int16_t x_clamp;

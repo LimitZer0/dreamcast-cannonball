@@ -19,6 +19,9 @@ namespace cannonball
     // FPS Counter
     extern int fps_counter;
 
+    // Timing readout for FPS COUNTER: DETAIL (Dreamcast)
+    extern char perf_line[48];
+
     // Engine Master State
     extern int state;
     

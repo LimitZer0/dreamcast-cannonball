@@ -7,6 +7,8 @@
 ***************************************************************************/
 
 #include "main.hpp"
+#include <string>
+#include "frontend/config.hpp"
 #include "engine/ohud.hpp"
 #include "engine/oinputs.hpp"
 #include "engine/ostats.hpp"
@@ -328,6 +330,17 @@ void OHiScore::do_input(uint32_t adr)
     else
         letter_selected = position;
 
+#ifdef DREAMCAST_DEBUG_AUTO_END
+    // Debug: after a second on the entry screen, select END and press it
+    static int auto_end_frames = 0;
+    if (++auto_end_frames > 60)
+    {
+        auto_end_frames = 0;
+        letter_selected = ENTRIES;
+        acc_curr = 1; acc_prev = 0;
+    }
+    else return;
+#endif
     // Check accelerator for press and depress
     if (!acc_curr || !(acc_prev ^ acc_curr)) return;
 
@@ -336,7 +349,11 @@ void OHiScore::do_input(uint32_t adr)
     {
         video.write_text16(adr + (initial_selected << 1), 0x20); // Write blank tile to ram
         ostats.frame_counter = 0;
-        ostats.time_counter = 0;
+        // Leave the screen on the next timer tick. With the timing fix enabled,
+        // decrement_timers() only finishes when the count reaches exactly 0, so
+        // starting from 0 wrapped the BCD counter to 9999 and the screen
+        // appeared to freeze.
+        ostats.time_counter = config.engine.fix_timer ? 1 : 0;
         state = STATE_DONE;
     }
     // Delete option selected
@@ -383,6 +400,29 @@ void OHiScore::do_input(uint32_t adr)
             // code to enable easter egg if YU. is inputted goes here.
         }
     }
+}
+
+// Arcade initials entry for the time trial results screen
+void OHiScore::alpha_reset()
+{
+    letter_selected = 0;
+    steer           = 0;
+    flash           = 0;
+    acc_curr = acc_prev = -1;   // accelerator must be released first
+}
+
+int OHiScore::alpha_tick()
+{
+    blit_alphabet();
+    int16_t position = read_controls() + letter_selected;
+    if (position > ALPHA_END)
+        position = 0;
+    else if (position < 0)
+        position = ALPHA_END;
+    letter_selected = position;
+    flash++;
+    if (!acc_curr || !(acc_prev ^ acc_curr)) return -1;
+    return letter_selected;
 }
 
 // Read controls for high score input screen
@@ -606,6 +646,17 @@ void OHiScore::blit_score_table()
     if (outrun.cannonball_mode != Outrun::MODE_CONT)
         blit_route_map();            // Blit Mini Route Map
     blit_lap_time();
+
+    // Name the table being shown: there is one per track set, game mode and
+    // assists setting (see config.cpp / vmu.cpp)
+    if (config.engine.score_scaling)
+    {
+        std::string label = config.engine.jap ? "JAPAN" : "WORLD";
+        label += outrun.cannonball_mode == Outrun::MODE_CONT ? " CONTINUOUS" : " ARCADE";
+        if (OStats::assists_enabled())
+            label += " MODIFIED";
+        ohud.blit_text_new(1, 1, label.c_str(), OHud::GREEN);
+    }
 }
 
 // Blit 7x single digit at start of score table (1. 2. 3. 4. 5. 6. 7.)

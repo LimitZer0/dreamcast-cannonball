@@ -21,7 +21,9 @@
 #include <SDL.h>
 #endif
 
-#ifdef WITH_OPENGL
+#ifdef DREAMCAST_PVR_RENDERER
+#include "dreamcast/pvr_render.hpp"
+#elif WITH_OPENGL
 #include "sdl2/rendergl.hpp"
 #elif WITH_OPENGLES
 #include "sdl2/rendergles.hpp"
@@ -62,6 +64,10 @@ int Video::init(Roms* roms, video_settings_t* settings)
 {
     if (!set_video_mode(settings))
         return 0;
+
+#ifdef DREAMCAST_PVR_RENDERER
+    static_cast<Render*>(renderer)->set_sources(sprite_layer, tile_layer);
+#endif
 
     // Internal pixel array. The size of this is always constant
     if (pixels) delete[] pixels;
@@ -110,6 +116,11 @@ void Video::disable()
 
 int Video::set_video_mode(video_settings_t* settings)
 {
+#ifdef DREAMCAST_PVR_RENDERER
+    // The PowerVR path renders the original 320x224 display only.
+    settings->widescreen = 0;
+    settings->hires      = 0;
+#endif
     if (settings->widescreen)
     {
         config.s16_width  = S16_WIDTH_WIDE;
@@ -131,7 +142,11 @@ int Video::set_video_mode(video_settings_t* settings)
     }
 
     if (settings->scanlines < 0) settings->scanlines = 0;
+#ifdef __DREAMCAST__
+    else if (settings->scanlines > 101) settings->scanlines = 101;   // 101 = solid LINES
+#else
     else if (settings->scanlines > 100) settings->scanlines = 100;
+#endif
 
     if (settings->scale < 1)
         settings->scale = 1;
@@ -187,6 +202,12 @@ void Video::prepare_frame()
     if (!renderer->start_frame())
         return;
 
+#ifdef DREAMCAST_PVR_RENDERER
+    // Sprites and the text layer are drawn by the PowerVR in finalize_frame()
+    static_cast<Render*>(renderer)->set_layers_enabled(enabled);
+    static_cast<Render*>(renderer)->begin_background();
+#endif
+
     if (!enabled)
     {
 #ifdef __DREAMCAST__
@@ -211,6 +232,14 @@ void Video::prepare_frame()
         perf_start = SDL_GetTicks();
 #endif
 
+#ifdef DREAMCAST_PVR_RENDERER
+        // Work out which lines the road will cover before drawing the tile
+        // layers, so they can skip them (below the horizon, usually)
+        const bool road_fg = !config.engine.fix_bugs || oroad.horizon_base != ORoad::HORIZON_OFF;
+        if (road_fg)
+            hwroad.foreground_coverage(static_cast<Render*>(renderer)->line_mask());
+        tile_layer->skip_lines = road_fg ? static_cast<Render*>(renderer)->line_mask() : NULL;
+#endif
         (hwroad.*hwroad.render_background)(pixels);
 #ifdef __DREAMCAST__
         perf_road_bg += SDL_GetTicks() - perf_start;
@@ -228,17 +257,28 @@ void Video::prepare_frame()
 #endif
 
         if (!config.engine.fix_bugs || oroad.horizon_base != ORoad::HORIZON_OFF)
+        {
+#ifdef DREAMCAST_PVR_RENDERER
+            Render* pvr = static_cast<Render*>(renderer);
+            hwroad.render_foreground_rgb565(pvr->lut(), pvr->bg_buffer(), pvr->line_mask());
+#else
             (hwroad.*hwroad.render_foreground)(pixels);
+#endif
+        }
 #ifdef __DREAMCAST__
         perf_road_fg += SDL_GetTicks() - perf_start;
         perf_start = SDL_GetTicks();
 #endif
+#ifndef DREAMCAST_PVR_RENDERER
         sprite_layer->render(8);
+#endif
 #ifdef __DREAMCAST__
         perf_sprites += SDL_GetTicks() - perf_start;
         perf_start = SDL_GetTicks();
 #endif
+#ifndef DREAMCAST_PVR_RENDERER
         tile_layer->render_text_layer(pixels, 1);
+#endif
 #ifdef __DREAMCAST__
         perf_text += SDL_GetTicks() - perf_start;
 #endif
@@ -302,6 +342,8 @@ void Video::clear_text_ram()
 {
     for (uint32_t i = 0; i <= 0xFFF; i++)
         tile_layer->text_ram[i] = 0;
+    for (int i = 0; i < 32; i++)
+        tile_layer->text_row_xoff[i] = 0;
 }
 
 void Video::write_text8(uint32_t addr, const uint8_t data)

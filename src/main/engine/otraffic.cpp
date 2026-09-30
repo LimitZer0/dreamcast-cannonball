@@ -10,6 +10,9 @@
     See license.txt for more details.
 ***************************************************************************/
 
+#ifdef DREAMCAST_DEBUG_INCAR
+#include <kos/dbglog.h>
+#endif
 #include "engine/obonus.hpp"
 #include "engine/ocrash.hpp"
 #include "engine/oferrari.hpp"
@@ -332,6 +335,19 @@ void OTraffic::move_spawned_sprite(oentry* sprite)
     {
         if (((oinitengine.route_selected ^ sprite->control) & OSprites::TRAFFIC_RHS) == 0) 
             return;
+    }
+
+    // Bug fix: where the roads merge before the checkpoint (split state 8)
+    // the route is cleared a tick before the traffic is moved to the merged
+    // road (traffic_split, state 9). For that tick the traffic is placed
+    // from the wrong road: it vanishes for a frame and a car from the other
+    // side flickers onto the screen just before the stage change. Keep that
+    // tick's traffic where it was.
+    if (config.engine.fix_bugs && oinitengine.rd_split_state == 8 &&
+        (outrun.game_state == GS_INGAME || outrun.game_state == GS_BONUS || outrun.game_state == GS_ATTRACT))
+    {
+        osprites.do_spr_order_shadows(sprite);
+        return;
     }
 
     if (outrun.game_state != GS_INGAME && outrun.game_state != GS_BONUS && outrun.game_state != GS_ATTRACT)
@@ -739,6 +755,11 @@ void OTraffic::check_collision(oentry* sprite)
 {
     int16_t d0 = 0;
 
+#ifdef DREAMCAST_DEBUG_INCAR
+    if ((sprite->z >> 16) >= 0x1D8 && (sprite->z >> 16) < 0x1E0)
+        dbglog(DBG_INFO, "cannonball: traffic at car depth view=%d x=%d y=%d width=%d zoom=%d\n",
+               oroad.get_view_mode(), sprite->x, sprite->y, sprite->width, sprite->zoom);
+#endif
     // Check for collision
     if (sprite->z >> 16 >= 0x1D8)
     {

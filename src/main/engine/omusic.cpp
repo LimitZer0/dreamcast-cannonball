@@ -305,9 +305,10 @@ void OMusic::tick_original(oentry* fm, oentry* dial, oentry* hand)
     const uint32_t NOTE_TILES2 = 0x8A7C8A7D;
     int selected;
 
-    // On a spring-centred gamepad, latch the station when the stick or D-pad is
-    // moved. The arcade wheel path below keeps the original live steering zones.
-    if (input.gamepad)
+    // On a spring-centred gamepad without analog steering (D-pad only), latch
+    // the station when the D-pad is pressed. With analog steering the stick
+    // works like the arcade wheel: left, centre and right pick the three songs.
+    if (input.gamepad && !config.controls.analog)
     {
         if (input.has_pressed(Input::LEFT))
         {

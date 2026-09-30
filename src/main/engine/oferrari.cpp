@@ -17,6 +17,9 @@
     See license.txt for more details.
 ***************************************************************************/
 
+#ifdef DREAMCAST_DEBUG_INCAR
+#include <kos/dbglog.h>
+#endif
 #include "engine/oanimseq.hpp"
 #include "engine/oattractai.hpp"
 #include "engine/obonus.hpp"
@@ -38,6 +41,10 @@ static const uint16_t FERRARI_PALETTES[] =
     OFerrari::PAL_YELLOW,   // Yellow
     OFerrari::PAL_GREEN,    // Green
     OFerrari::PAL_CYAN,     // Cyan
+    OFerrari::PAL_BLACK,    // Black
+    OFerrari::PAL_WHITE,    // White
+    OFerrari::PAL_PINK,     // Pink
+    OFerrari::PAL_RAINBOW,  // Rainbow
 };
 
 OFerrari::OFerrari(void)
@@ -114,7 +121,7 @@ void OFerrari::init(oentry *f, oentry *p1, oentry *p2, oentry *s)
     torque_lookup[0x1F] = config.engine.turbo ? 0x558 : 0x66C;
 
     int size = sizeof(FERRARI_PALETTES)/sizeof(FERRARI_PALETTES[0]);
-    if (config.engine.car_pal >= size)
+    if (config.engine.car_pal >= size || (config.engine.car_pal == 8 && !config.engine.rainbow_unlocked))
         config.engine.car_pal = 0;
     ferrari_pal = FERRARI_PALETTES[config.engine.car_pal];
 }
@@ -1664,19 +1671,30 @@ void OFerrari::do_sound_score_slip()
     // check_wheels:
     cornering_old = cornering;
 
+    // Dreamcast addition: no off-road or tyre noise while the car is stopped.
+    // (The original keeps the off-road sound running for as long as the
+    // wheels are off the road, even at 0 km/h.)
+    const bool stopped = (oinitengine.car_increment >> 16) == 0;
+    const int16_t sound_wheels = stopped ? (int16_t) WHEELS_ON : (int16_t) wheel_state;
+    if (stopped && is_slipping)
+    {
+        is_slipping = 0;
+        osoundint.queue_sound(sound::STOP_SLIP);
+    }
+
     if (sprite_wheel_state)
     {
         // If previous wheels on-road & current wheels off-road - play safety zone sound
-        if (!wheel_state)
+        if (!sound_wheels)
             osoundint.queue_sound(sound::STOP_SAFETYZONE);
     }
     // Stop Safety Sound
     else
     {
-        if (wheel_state)
+        if (sound_wheels)
             osoundint.queue_sound(sound::INIT_SAFETYZONE);
     }
-    sprite_wheel_state = wheel_state;
+    sprite_wheel_state = sound_wheels;
 }
 
 // Shake Ferrari by altering XY Position when wheels are off-road
@@ -1739,6 +1757,12 @@ void OFerrari::do_skid()
 
 void OFerrari::draw_sprite(oentry* sprite)
 {
+#ifdef DREAMCAST_DEBUG_INCAR
+    static int n = 0;
+    if (++n % 300 == 0)
+        dbglog(DBG_INFO, "cannonball: ferrari view=%d x=%d y=%d width=%d zoom=%d\n",
+               oroad.get_view_mode(), sprite->x, sprite->y, sprite->width, sprite->zoom);
+#endif
     if (oroad.get_view_mode() != ORoad::VIEW_INCAR)
     {
         osprites.map_palette(sprite);

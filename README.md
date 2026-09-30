@@ -54,9 +54,9 @@ Build
 * Copy the OutRun revision B romset to the roms subdirectory. 
 * You can then compile, debug and run from Visual Studio as expected.
 
-DREAMCAST
-download boost.tar.gz and extract and pass the path to cmake
- cmake -DCMAKE_TOOLCHAIN_FILE="$KOS_CMAKE_TOOLCHAIN" -D__DREAMCAST__=1 -DSDL2_DIR="/opt/toolchains/dc/kos/addons/lib/dreamcast/cmake/SDL2" -DSDL2_INCLUDE_DIRS="/opt/toolchains/dc/kos/addons/include/SDL2" -DSDL2_LIBRARIES="/opt/toolchains/dc/kos/addons/lib/dreamcast/libSDL2.a;/opt/toolchains/dc/kos/addons/lib/dreamcast/libSDL2main.a" -DBoost_INCLUDE_DIR=/home/gpf/code/dreamcast/boost_1_87_0/ -DTARGET=linux.cmake -Bbuild ./cmake
+### Dreamcast
+
+Easiest: open `easycompile.html` (at the top of this repository) in a web browser, drop in your OutRun ROM zip and click **Make disc** (no installs). To build it yourself, see [docs/BUILDING-DREAMCAST.md](docs/BUILDING-DREAMCAST.md).
 
 Test running in dreamcast emulator Deecy
 

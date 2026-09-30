@@ -39,6 +39,22 @@ public:
     void setup_road_best();
     void display_scores();
 
+    // The table is on screen and final (mini cars done, no initials being
+    // entered). Used for the leaderboard QR code.
+    bool table_ready() const
+    {
+        return best_or_state >= 2 && (score_pos == -1 || state == STATE_DONE);
+    }
+
+    // Arcade initials entry (alphabet row, steering, accelerator), shared
+    // with the time trial results screen.
+    // alpha_tick draws the row and returns the entry chosen with the
+    // accelerator (0-25 letters, 26 full stop, ALPHA_DELETE, ALPHA_END) or -1.
+    const static int ALPHA_DELETE = 27, ALPHA_END = 28;
+    void alpha_reset();
+    int  alpha_tick();
+    int  alpha_selected() const { return letter_selected; }
+
 private:
     const static uint16_t TILE_PROPS = 0x8030;
 

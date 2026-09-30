@@ -167,6 +167,7 @@ uint8_t ORoad::get_view_mode()
 void ORoad::set_view_mode(uint8_t mode, bool snap)
 {
     view_mode = mode;
+    hood = false;
 
     if (mode == VIEW_ORIGINAL)
     {

@@ -9,6 +9,9 @@
     See license.txt for more details.
 ***************************************************************************/
 
+#ifdef DREAMCAST_CUSTOM_MUSIC
+#include "dreamcast/custom_music.hpp"
+#endif
 #include "engine/outrun.hpp"
 #include "engine/audio/osound.hpp"
 #include "engine/audio/osoundint.hpp"
@@ -156,6 +159,11 @@ void OSoundInt::queue_sound(uint8_t snd)
 
 void OSoundInt::add_to_queue(uint8_t snd)
 {
+#ifdef DREAMCAST_CUSTOM_MUSIC
+    // Custom music files replace the chip music for tracks that have one
+    if (custommusic::handle_command(snd))
+        return;
+#endif
     // Add sound to the tail end of the queue
     queue[sound_tail] = snd;
     sound_tail = (sound_tail + 1) & QUEUE_LENGTH;

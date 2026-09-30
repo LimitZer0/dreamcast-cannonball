@@ -31,6 +31,22 @@ public:
     // Score (Outputs Hex values directly)
     uint32_t score;
 
+    // Score scaling (Dreamcast addition): points are earned unscaled into
+    // score_raw (decimal) and 'score' shows score_raw * score_mult / 1000.
+    // The multiplier is fixed at the start of each game from the difficulty
+    // settings. 1000 = x1.00 (exactly the original scoring).
+    uint64_t score_raw;
+    uint16_t score_mult;
+
+    // Multiplier (per-mille) for the current difficulty settings
+    static uint16_t calc_score_mult(bool continuous_mode);
+
+    // True when assists/cheats are on (grippy tyres, off-road, bumper,
+    // turbo or timer disabled). Those runs use their own high score table.
+    static bool assists_enabled();
+
+    void reset_score();
+
     // Store info on the route taken by the player
     //
     // +10 For each stage. 

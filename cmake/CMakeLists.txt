@@ -66,12 +66,18 @@ set(src_frontend
     "${main_cpp_base}/frontend/menulabels.hpp"
     "${main_cpp_base}/frontend/ttrial.hpp"
     "${main_cpp_base}/frontend/vmu.hpp"
+    "${main_cpp_base}/frontend/leaderboard.hpp"
+    "${main_cpp_base}/frontend/timeattack.hpp"
+    "${main_cpp_base}/frontend/qrcodegen.h"
 
     "${main_cpp_base}/frontend/cabdiag.cpp"
     "${main_cpp_base}/frontend/config.cpp"
     "${main_cpp_base}/frontend/menu.cpp"
     "${main_cpp_base}/frontend/ttrial.cpp"
     "${main_cpp_base}/frontend/vmu.cpp"
+    "${main_cpp_base}/frontend/leaderboard.cpp"
+    "${main_cpp_base}/frontend/timeattack.cpp"
+    "${main_cpp_base}/frontend/qrcodegen.c"
     )
 
 set(src_hwvideo
@@ -106,7 +112,18 @@ set(src_sdl
 	"${main_cpp_base}/sdl2/renderbase.cpp"
     )
    
-if(OPENGL)
+if(DREAMCAST_PVR_RENDERER)
+	set(src_render
+	    "${main_cpp_base}/dreamcast/pvr_render.hpp"
+	    "${main_cpp_base}/dreamcast/pvr_render.cpp"
+	    "${main_cpp_base}/dreamcast/pvr_sprite_core.hpp"
+	    "${main_cpp_base}/dreamcast/pvr_sprite_core.cpp"
+	    "${main_cpp_base}/dreamcast/pvr_road.hpp"
+	    "${main_cpp_base}/dreamcast/pvr_road.cpp"
+	    "${main_cpp_base}/dreamcast/pvr_selftest.cpp"
+	    "${main_cpp_base}/dreamcast/pvr_compare.cpp"
+	)
+elseif(OPENGL)
 	set(src_render
 	    "${main_cpp_base}/sdl2/rendergl.hpp"
 	    "${main_cpp_base}/sdl2/rendergl.cpp"
@@ -120,6 +137,18 @@ else()
 	set(src_render
 	    "${main_cpp_base}/sdl2/rendersurface.hpp"
 	    "${main_cpp_base}/sdl2/rendersurface.cpp"
+	)
+endif()
+
+# Dreamcast custom music (used with either renderer)
+if(DREAMCAST_BUILD)
+	list(APPEND src_render
+	    "${main_cpp_base}/dreamcast/custom_music.hpp"
+	    "${main_cpp_base}/dreamcast/custom_music.cpp"
+	    "${main_cpp_base}/dreamcast/vmu_lcd.hpp"
+	    "${main_cpp_base}/dreamcast/vmu_lcd.cpp"
+	    "${main_cpp_base}/dreamcast/libwav/sndwav.c"
+	    "${main_cpp_base}/dreamcast/libwav/libwav.c"
 	)
 endif()
 

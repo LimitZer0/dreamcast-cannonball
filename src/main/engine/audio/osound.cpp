@@ -77,6 +77,22 @@ void OSound::init_fm_chip()
    fm_write_reg(0x14, 0x35);
 }
 
+uint32_t OSound::music_state_hash() const
+{
+    // FNV-1a over the music channels (YM1-8, PCM drums 1-6), the channel
+    // mapping area and the shared command/work area, plus the loose state
+    uint32_t h = 2166136261u;
+    auto mix = [&h](uint8_t b) { h = (h ^ b) * 16777619u; };
+    for (uint16_t i = 0x000; i < 0x1E0; i++) mix(chan_ram[i]);
+    for (uint16_t i = 0x2E0; i < 0x3C0; i++) mix(chan_ram[i]);
+    for (uint16_t i = 0x500; i < CHAN_RAM_SIZE; i++) mix(chan_ram[i]);
+    mix(sound_props); mix(command_index);
+    mix(counter1); mix(counter2); mix(counter3); mix(counter4);
+    mix(pos & 0xFF); mix(pos >> 8); mix(cmd_prev);
+    mix(chanid_prev & 0xFF); mix(chanid_prev >> 8);
+    return h;
+}
+
 void OSound::tick()
 {
     fm_dotimera();          // FM: Process Timer A. Stop Timer B
@@ -598,6 +614,7 @@ void OSound::next_mml_cmd(uint8_t* chan, uint8_t cmd)
 
         case mml::LOOP_FOREVER:
             set_loop_adr();
+            loop_forever_count[((chan - chan_ram) / CHAN_SIZE) & 31]++;
             break;
 
         // YM: Set Note/Octave Offset

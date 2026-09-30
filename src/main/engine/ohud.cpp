@@ -17,8 +17,11 @@
 #include "engine/oferrari.hpp"
 #include "engine/outils.hpp"
 #include "engine/ohud.hpp"
+#include "frontend/timeattack.hpp"
 #include "engine/ooutputs.hpp"
 #include "engine/ostats.hpp"
+#include "frontend/config.hpp"
+#include "main.hpp"
 
 OHud ohud;
 
@@ -43,8 +46,11 @@ void OHud::draw_main_hud()
     {
         blit_text1(HUD_TIME1);
         blit_text1(HUD_TIME2);
-        blit_text1(HUD_SCORE1);
-        blit_text1(HUD_SCORE2);
+        if (!timeattack::active())      // time trial: the total time goes there
+        {
+            blit_text1(HUD_SCORE1);
+            blit_text1(HUD_SCORE2);
+        }
         blit_text1(HUD_STAGE1);
         blit_text1(HUD_STAGE2);
         blit_text1(HUD_ONE);
@@ -80,6 +86,9 @@ void OHud::draw_fps_counter(int16_t fps)
 {
     std::string str = "FPS " + Utils::to_string(fps);
     blit_text_new(30, 0, str.c_str());
+    // DETAIL: where each frame's time goes (see main.cpp)
+    if (config.video.fps_count == 2 && cannonball::perf_line[0])
+        blit_text_new(0, 0, cannonball::perf_line, OHud::GREY);
 }
 
 
@@ -227,6 +236,8 @@ void OHud::draw_lap_timer(uint32_t addr, uint8_t* digits, uint8_t ms_value)
 void OHud::draw_score_ingame(uint32_t score)
 {
     if (outrun.game_state < GS_START1 || outrun.game_state > GS_BONUS)
+        return;
+    if (timeattack::active())           // no score in time trial
         return;
 
     draw_score(0x110150, score, 2);
@@ -718,6 +729,29 @@ void OHud::blit_text_big(const uint8_t Y, const char* text, bool do_notes)
 // screen columns 0 through 39.
 //
 // Normal font: 41 onwards
+uint16_t OHud::centre_x(uint16_t y, int length)
+{
+    if (y < 32)
+        video.tile_layer->text_row_xoff[y] = (length & 1) ? -4 : 0;
+    return (uint16_t)(20 - (length >> 1));
+}
+
+void OHud::blit_text_centre(uint16_t y, const char* text, uint16_t pal)
+{
+    const int length = (int)strlen(text);
+    const uint16_t x = centre_x(y, length);
+    uint32_t dst_addr = translate(x, y);
+    for (int i = 0; i < length; i++)
+    {
+        char c = text[i];
+        if (c >= 'a' && c <= 'z') c -= 0x20;
+        else if (c == '-') c = 0x2d;
+        else if (c == '.') c = 0x5b;
+        else if (c == ':') c = 0x40;   // colon tile added in hwtiles::init
+        video.write_text16(&dst_addr, (pal << 8) | c);
+    }
+}
+
 void OHud::blit_text_new(uint16_t x, uint16_t y, const char* text, uint16_t pal)
 {
     uint32_t dst_addr = translate(x, y); 
@@ -736,6 +770,8 @@ void OHud::blit_text_new(uint16_t x, uint16_t y, const char* text, uint16_t pal)
             c = 0x2d;
         else if (c == '.')
             c = 0x5b;
+        else if (c == ':')
+            c = 0x40;                  // colon tile added in hwtiles::init
 
         video.write_text16(&dst_addr, (pal << 8) | c);
     }

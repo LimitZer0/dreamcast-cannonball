@@ -20,9 +20,10 @@
 <video>
     <!-- Set Screen Mode: 
     
-         0 is windowed, 
-         1 is full-screen
-         2 is full-screen stretched, no borders. (Aspect ratio will be lost. Scanlines will be disabled.)
+         Dreamcast (also CURRENT DISPLAY in the video menu):
+         0 = ORIGINAL: 320x224 at 1:1 in the middle of the screen
+         1 = 2X: 2x with black borders (drawn at 320x240 and
+             doubled by the video hardware, which is the fastest)
     -->
     <mode>1</mode>
     <!-- 
@@ -33,15 +34,11 @@
         <scale>1</scale>
     </window>
     <!-- 
-        Scanline intensity.
-        0   = No scanlines
-        100 = Solid black
-        
-        A value of 35 looks good on my LCD monitor.
-        
-        Note that scanlines require a scale factor of 2 or more. 
-        Scanlines do not work in full-screen stretch mode.
-        Scanlines may result in some borders around the screen in full-screen mode.
+        Scanlines (Dreamcast).
+        0      = Off
+        10-100 = "XX% OVERLAY": darkens every other game line, 10% to 100%
+        101    = "TRUE 100%": a solid black line between each game line
+                 (VGA box only, 320x480; other cables use 100%)
     -->
     <scanlines>0</scanlines>
     <!-- FPS 
@@ -49,8 +46,23 @@
          1 = 30/60 FPS. Original Game Mode.  (The original experience)
          2 = 60    FPS. Smooth Mode.         (Full 60fps)
     -->
-    <fps>0</fps>
+    <fps>2</fps>
     
+    <!-- Dreamcast CRT frame (also CRT FRAME in the video menu):
+         0 = off, 1 = rounded corners, 2 = rounded corners and edges shaded -->
+    <crt_frame>0</crt_frame>
+
+    <!-- Dreamcast (also VMU ANIMATION in the video menu): a looping
+         animation on the VMU screens. 1 = on, 0 = off -->
+    <vmu_animation>1</vmu_animation>
+
+    <!-- Dreamcast (also GAME ENGINE > CAR SETUP > EMBLEM): the badge and number
+         plate on the back of your car.
+         0 = FIXED: always read the right way
+         1 = MIRRORED (ORIGINAL): read backwards when the car turns or skids left,
+             as in the arcade (the game mirrors the right-hand frames) -->
+    <mirror_car_badge>0</mirror_car_badge>
+
     <!-- Enable FPS Counter -->
     <fps_counter>1</fps_counter>
     
@@ -89,6 +101,10 @@
     
     <!-- OutRun shipped with a corrupt PCM sample ROM. This uses the repaired ROM 'opr-10188.71f' -->
     <fix_samples>0</fix_samples>
+
+    <!-- Dreamcast music source: 0 = original music, 1 = your music files from
+         /music (1.wav-4.wav), 2 = music off -->
+    <use_music_files>0</use_music_files>
     
     <!-- Override Music Selection Timeout (Default: 30 Seconds, Max: 99 Seconds) -->
     <music_timer>30</music_timer>
@@ -178,15 +194,17 @@
     <!-- Gamepad / Joystick Button Configuration. Easiest to configure with inbuilt menu.
          Dreamcast SDL_GameController defaults:
          A=0, B=1, X=2, Y=3, START=6, DPAD_UP=11, DPAD_DOWN=12, DPAD_LEFT=13, DPAD_RIGHT=14.
-         Coin and menu are unassigned on the stock Dreamcast controller; freeplay is enabled below. -->
+         Dreamcast defaults: right trigger accelerate, left trigger brake (analog axes
+         below), A gear down, X gear up (X is also the single gear button), Y view,
+         START start, D-pad up menu. Coin is not used (always free play). -->
     <padconfig>
-        <acc>0</acc>
-        <brake>1</brake>
-        <gear1>2</gear1>
-        <gear2>-1</gear2>
+        <acc>-1</acc>
+        <brake>-1</brake>
+        <gear1>0</gear1>
+        <gear2>2</gear2>
         <start>6</start>
         <coin>-1</coin>
-        <menu>-1</menu>
+        <menu>11</menu>
         <view>3</view>
         <up>11</up>
         <down>12</down>
@@ -211,8 +229,10 @@
           -->
 		<axis>
 			<wheel>0</wheel>
-			<accel invert="0">5</accel>
-			<brake invert="0">4</brake>
+			<!-- Dreamcast controller: 2 = right trigger, 3 = left trigger.
+			     They rest at +32767 and go negative when pressed: invert="1" -->
+			<accel invert="1">2</accel>
+			<brake invert="1">3</brake>
 		</axis>
         
         <!-- Analog Wheel Settings -->
@@ -251,8 +271,9 @@
          2 = Hard      (72 seconds) 
          3 = Very Hard (70 seconds)  
          4 = Infinite Time 
+         Normal time and traffic score x1.00 (see scorescaling below)
     -->
-    <time>0</time>
+    <time>1</time>
     
     <!-- Traffic Difficulty: 
          0 = Easy, 
@@ -264,7 +285,7 @@
     <traffic>1</traffic>
     
     <!-- Freeplay Mode -->
-    <freeplay>1</freeplay>
+    <freeplay>1</freeplay> <!-- ignored on Dreamcast: always free play -->
     
     <!-- The original Japanese release of OutRun featured slightly different
          tracks and course ordering. 
@@ -282,6 +303,18 @@
          This fixes the broken arches in Gateway for example.
     --->
     <levelobjects>1</levelobjects>
+
+    <!-- Dreamcast: scale scores by difficulty so different settings can share
+         a high score table. Harder time/traffic multiply the score up, easier
+         settings down (x0.30 to x1.50, shown as SCORE in the game settings;
+         automatic gears x0.90).
+         Grippy tyres, off-road, bumper, turbo, a disabled timer or the
+         prototype stage 1 use a separate MODIFIED table. 0 = original scoring.
+    -->
+    <scorescaling>1</scorescaling>
+
+    <!-- Dreamcast: speedometer in 0 = km/h, 1 = mph -->
+    <speedmph>0</speedmph>
     
     <!-- Use the original random number generator seed to match the setup of
          the original game. Disable to use a truly random setup.
@@ -352,3 +385,4 @@
     <enabled>1</enabled>
     <roadspeed>25</roadspeed>
 </menu>
+

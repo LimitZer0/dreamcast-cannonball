@@ -1,0 +1,368 @@
+<!doctype html>
+<!--
+  QRLeaderboard pass maker. Source file: make_tool.py builds qrleaderboard.html
+  from it by filling in the embedded setup disc, blank memory card image and
+  icon.
+
+  Put it on the leaderboard's website next to qrleaderboard_config.php
+  (web/leaderboard), which gives the page the leaderboard's address and key
+  so players never type or see them. The pass is made in the browser;
+  nothing is uploaded.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QRLeaderboard</title>
+<style>
+:root { --bg:#10131f; --panel:#1a1f33; --line:#2c3352; --text:#e8ecf8; --muted:#97a0bf; --accent:#ffcf3f; --hot:#ff5c7a; --ok:#53d99a;
+        color-scheme:dark; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+header { background:linear-gradient(135deg,#1e2a78 0%,#5b2bb0 55%,#e0427a 100%); color:#fff; padding:22px 16px 18px; text-align:center; }
+header h1 { margin:0; font-size:clamp(24px,5vw,34px); letter-spacing:.02em; }
+header p { margin:4px 0 0; opacity:.9; }
+main { max-width:760px; margin:0 auto; padding:16px; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+h2 { font-size:18px; margin:0 0 8px; }
+button:disabled { opacity:.45; cursor:default; }
+.site { font-weight:600; color:var(--text); word-break:break-all; }
+button, a.btn { display:inline-block; font:inherit; font-weight:700; background:var(--accent); color:#1d1300; border:0; border-radius:8px; padding:10px 16px; cursor:pointer; text-decoration:none; margin:6px 8px 0 0; }
+a.btn.alt { background:transparent; color:var(--text); border:1px solid var(--line); font-weight:600; }
+.note { color:var(--muted); font-size:14px; }
+.err { color:var(--hot); } .ok { color:var(--ok); }
+#drop { border:2px dashed var(--line); border-radius:10px; padding:16px; text-align:center; cursor:pointer; margin-top:8px; }
+#drop.over { border-color:var(--accent); }
+ul.out { list-style:none; padding:0; margin:0; }
+ul.out li { padding:10px 0; border-bottom:1px solid var(--line); }
+ul.out li:last-child { border-bottom:0; }
+</style>
+</head>
+<body>
+<header>
+    <h1>QRLeaderboard</h1>
+    <p>Make a leaderboard pass for your Dreamcast memory card</p>
+</header>
+<main>
+<div class="panel">
+    <p class="note" style="margin:0">Games that support QRLeaderboard offer score submission only when a pass is on
+    a memory card. This page makes a pass for <span class="site" id="site">this site's leaderboard</span>.</p>
+</div>
+
+<div class="panel">
+    <h2>1. Memory card image (optional)</h2>
+    <p class="note" style="margin-top:0">To add the pass to a memory card image you already use (Flycast, VM2, VMU Pro…),
+    drop that image here. Its saves are kept. Otherwise you get a fresh card with just the pass.</p>
+    <div id="drop" tabindex="0">Drop a 128 KB .bin memory card image, or click to choose one</div>
+    <input type="file" id="vmufile" accept=".bin,.vmu,.img" hidden>
+    <p id="vmumsg" class="note"></p>
+</div>
+
+<div class="panel">
+    <h2>2. Make it</h2>
+    <button id="make" disabled>Make the pass</button>
+    <p id="msg" class="note"></p>
+    <div id="out" hidden>
+        <ul class="out">
+            <li><a class="btn" id="dl-cdi">QRLeaderboard_setup.cdi</a><br>
+                <span class="note">Setup disc for a real Dreamcast (GDEMU, burned CD). Boot it, pick a memory card, press A.</span></li>
+            <li><a class="btn" id="dl-bin">QRLeaderboard_vmu.bin</a><br>
+                <span class="note">Memory card image with the pass, for Flycast (as vmu_save_A1.bin) or SD-card memory cards.</span></li>
+            <li><a class="btn alt" id="dl-vms">QRLEADER.VMS</a><a class="btn alt" id="dl-vmi">QRLEADER.VMI</a><a class="btn alt" id="dl-dci">QRLEADERBRD.DCI</a><br>
+                <span class="note">The pass as a single save file, for memory card managers (VMS + VMI pair, or DCI).</span></li>
+        </ul>
+    </div>
+</div>
+<p class="note">Everything is made on this page; nothing is uploaded. The pass takes 2 blocks and shows as
+“QRLeaderboard” in the memory card menu.</p>
+</main>
+
+<script id="core">
+// ---------------------------------------------------------------------------
+// QRLeaderboard pass files. Pass data (file QRLEADERBRD on the card):
+//   "QRLB" | version 1 | url length | url | 32-byte key | CRC-32 (IEEE)
+// ---------------------------------------------------------------------------
+const QRLB = (() => {
+    const EMBED = {
+        setupCdiGz: '__SETUP_CDI_GZ__',     // setup disc template, gzip + base64
+        blankVmuGz: '__BLANK_VMU_GZ__',     // formatted empty memory card
+        iconPal: __ICON_PAL__,              // 16 ARGB4444 colours
+        iconData: '__ICON_DATA__',          // 512 bytes, hex
+    };
+    const SLOT_MARK = 'QRLB\x00\x00QRLEADERBOARD-PASS-SLOT';
+    const VMU_NAME = 'QRLEADERBRD';
+
+    // --- checksums ---------------------------------------------------------
+    const crcT = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcT[i] = c >>> 0; }
+    const crc32 = (b) => { let c = 0xFFFFFFFF; for (const x of b) c = crcT[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+    function crc16ccitt(b) {        // as KallistiOS net_crc16ccitt (VMU file header)
+        let rv = 0;
+        for (const x of b) {
+            let t = ((rv >> 8) ^ x) & 0xFFFF;
+            t ^= t >> 4;
+            rv = ((rv << 8) ^ (t << 12) ^ (t << 5) ^ t) & 0xFFFF;
+        }
+        return rv;
+    }
+    // CD-ROM EDC / ECC (mode 2 form 1 sectors, as in the .cdi)
+    const eccF = new Uint8Array(256), eccB = new Uint8Array(256), edcT = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+        const j = ((i << 1) ^ (i & 0x80 ? 0x11D : 0)) & 0xFF;
+        eccF[i] = j; eccB[i ^ j] = i;
+        let e = i; for (let k = 0; k < 8; k++) e = (e >>> 1) ^ (e & 1 ? 0xD8018001 : 0);
+        edcT[i] = e >>> 0;
+    }
+    const edc = (b, s, n) => { let e = 0; for (let i = s; i < s + n; i++) e = (e >>> 8) ^ edcT[(e ^ b[i]) & 255]; return e >>> 0; };
+    function eccPQ(s, majorCount, minorCount, majorMult, minorInc, dest) {
+        const size = majorCount * minorCount;
+        for (let major = 0; major < majorCount; major++) {
+            let index = (major >> 1) * majorMult + (major & 1), a = 0, b = 0;
+            for (let minor = 0; minor < minorCount; minor++) {
+                const t = s[12 + index];
+                index += minorInc; if (index >= size) index -= size;
+                a ^= t; b ^= t; a = eccF[a];
+            }
+            a = eccB[eccF[a] ^ b];
+            s[12 + dest + major] = a; s[12 + dest + major + majorCount] = a ^ b;
+        }
+    }
+    const le16 = (b, o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; };
+    const le32 = (b, o, v) => { b[o] = v & 255; b[o + 1] = (v >>> 8) & 255; b[o + 2] = (v >>> 16) & 255; b[o + 3] = (v >>> 24) & 255; };
+    const rd16 = (b, o) => b[o] | (b[o + 1] << 8);
+    const rd32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
+    const ascii = (b, o, s, n, pad = 0x20) => { for (let i = 0; i < n; i++) b[o + i] = i < s.length ? s.charCodeAt(i) : pad; };
+    const fromB64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    async function gunzip(b64) {
+        const stream = new Blob([fromB64(b64)]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+
+    // --- pass ---------------------------------------------------------------
+    function check(url, key) {
+        if (!url) return 'The leaderboard address is missing.';
+        if (url.length > 250) return 'The address is longer than 250 characters.';
+        if (!/^https?:\/\/[\x21-\x7e]+$/.test(url)) return 'The address should start with http:// or https:// and have no spaces or accents.';
+        if (!/^[0-9a-fA-F]{64}$/.test(key)) return 'The key must be 64 hex digits (0-9, a-f).';
+        return null;
+    }
+    function makePass(url, keyHex) {
+        const body = 6 + url.length + 32, p = new Uint8Array(body + 4);
+        ascii(p, 0, 'QRLB', 4); p[4] = 1; p[5] = url.length;
+        ascii(p, 6, url, url.length);
+        for (let i = 0; i < 32; i++) p[6 + url.length + i] = parseInt(keyHex.substr(i * 2, 2), 16);
+        le32(p, body, crc32(p.subarray(0, body)));
+        return p;
+    }
+
+    // VMU file (package): 128-byte header, icon, then the pass
+    function vmuPackage(pass) {
+        const out = new Uint8Array(128 + 512 + pass.length);
+        ascii(out, 0, 'QRLeaderboard', 16);
+        ascii(out, 16, 'QRLeaderboard pass', 32);
+        ascii(out, 48, 'QRLEADERBOARD', 16, 0);
+        le16(out, 64, 1);                           // one icon frame
+        le32(out, 72, pass.length);
+        EMBED.iconPal.forEach((c, i) => le16(out, 96 + i * 2, c));
+        for (let i = 0; i < 512; i++) out[128 + i] = parseInt(EMBED.iconData.substr(i * 2, 2), 16);
+        out.set(pass, 640);
+        le16(out, 70, crc16ccitt(out));
+        const padded = new Uint8Array(Math.ceil(out.length / 512) * 512);
+        padded.set(out);
+        return padded;
+    }
+
+    const bcd = (v) => ((v / 10) | 0) << 4 | (v % 10);
+    function dirent(blocks, first, now) {
+        const d = new Uint8Array(32);
+        d[0] = 0x33;                                // data file
+        le16(d, 2, first);
+        ascii(d, 4, VMU_NAME, 12, 0);
+        const y = now.getFullYear();
+        [bcd((y / 100) | 0), bcd(y % 100), bcd(now.getMonth() + 1), bcd(now.getDate()), bcd(now.getHours()),
+         bcd(now.getMinutes()), bcd(now.getSeconds()), (now.getDay() + 6) % 7].forEach((v, i) => d[16 + i] = v);
+        le16(d, 0x18, blocks);
+        return d;
+    }
+
+    // .VMS is the file itself; .VMI describes it (for memory card managers)
+    function vmi(size, now) {
+        const v = new Uint8Array(108), res = 'QRLEADER';
+        for (let i = 0; i < 4; i++) v[i] = res.charCodeAt(i) & 'SEGA'.charCodeAt(i);
+        ascii(v, 4, 'QRLeaderboard pass', 32);
+        ascii(v, 36, 'QRLeaderboard', 32);
+        le16(v, 68, now.getFullYear()); v[70] = now.getMonth() + 1; v[71] = now.getDate();
+        v[72] = now.getHours(); v[73] = now.getMinutes(); v[74] = now.getSeconds(); v[75] = now.getDay();
+        le16(v, 76, 0); le16(v, 78, 1);
+        ascii(v, 80, res, 8, 0);
+        ascii(v, 88, VMU_NAME, 12, 0);
+        le16(v, 100, 0);                            // data file, copying allowed
+        le32(v, 104, size);
+        return v;
+    }
+    // .DCI: directory entry, then the file with every 4 bytes reversed
+    function dci(file, now) {
+        const out = new Uint8Array(32 + file.length);
+        out.set(dirent(file.length / 512, 0, now));
+        for (let i = 0; i < file.length; i += 4)
+            for (let k = 0; k < 4; k++) out[32 + i + k] = file[i + 3 - k];
+        return out;
+    }
+
+    // Whole 128 KB memory card image with the pass added (any old pass replaced)
+    function addToImage(image, file, now) {
+        const img = image.slice();
+        if (img.length !== 131072) throw new Error('A memory card image must be exactly 128 KB (131072 bytes).');
+        const root = 255 * 512;
+        if (img[root] !== 0x55) throw new Error("That doesn't look like a formatted memory card image.");
+        const fatAt = rd16(img, root + 0x46), dirAt = rd16(img, root + 0x4A), dirBlocks = rd16(img, root + 0x4C);
+        const users = rd16(img, root + 0x50) || 200;
+        const fat = (b) => rd16(img, fatAt * 512 + b * 2), setFat = (b, v) => le16(img, fatAt * 512 + b * 2, v);
+        // Remove an existing pass
+        const entries = [];
+        for (let b = 0; b < dirBlocks; b++) for (let e = 0; e < 16; e++) entries.push((dirAt - b) * 512 + e * 32);
+        for (const at of entries) {
+            if (img[at] === 0) continue;
+            const name = String.fromCharCode(...img.subarray(at + 4, at + 16)).replace(/\0+$/, '');
+            if (name !== VMU_NAME) continue;
+            let b = rd16(img, at + 2), guard = 0;
+            while (b < 256 && guard++ < 256) { const nx = fat(b); setFat(b, 0xFFFC); if (nx === 0xFFFA) break; b = nx; }
+            img.fill(0, at, at + 32);
+        }
+        // Allocate from the top of the user area down, as the Dreamcast does
+        const need = file.length / 512, blocks = [];
+        for (let b = users - 1; b >= 0 && blocks.length < need; b--) if (fat(b) === 0xFFFC) blocks.push(b);
+        if (blocks.length < need) throw new Error(`Not enough free space on that memory card (${need} blocks needed).`);
+        const slot = entries.find(at => img[at] === 0);
+        if (slot === undefined) throw new Error('That memory card has no free directory entries.');
+        blocks.forEach((b, i) => {
+            img.set(file.subarray(i * 512, (i + 1) * 512), b * 512);
+            setFat(b, i + 1 < blocks.length ? blocks[i + 1] : 0xFFFA);
+        });
+        img.set(dirent(need, blocks[0], now), slot);
+        return img;
+    }
+
+    // PASS.BIN on the setup disc is scrambled so the key isn't readable on the
+    // disc: "QRLX" | 4-byte nonce | pass XOR an xorshift32 keystream
+    // (setup_disc/setup.c unscrambles it before saving the pass to the card)
+    function scramblePass(pass) {
+        const out = new Uint8Array(512), nonce = new Uint8Array(4);
+        crypto.getRandomValues(nonce);
+        ascii(out, 0, 'QRLX', 4); out.set(nonce, 4);
+        let s = (0x9E3779B9 ^ rd32(nonce, 0)) >>> 0;
+        if (!s) s = 1;
+        for (let i = 8; i < 512; i++) {
+            s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
+            out[i] = (i - 8 < pass.length ? pass[i - 8] : 0) ^ (s >>> 24);
+        }
+        return out;
+    }
+
+    // Setup disc: write the (scrambled) pass into the PASS.BIN slot and fix that sector
+    function fillSetupDisc(cdi, pass) {
+        const out = cdi.slice(), mark = Array.from(SLOT_MARK, c => c.charCodeAt(0));
+        let pos = -1;
+        for (let i = 0; i + mark.length <= out.length && pos < 0; i++) {
+            if (out[i] !== 0x51) continue;
+            let k = 1; while (k < mark.length && out[i + k] === mark[k]) k++;
+            if (k === mark.length) pos = i;
+        }
+        if (pos < 0) throw new Error('Setup disc template is damaged.');
+        const unit = pos - 8;                         // 2336-byte sector: subheader(8) + data(2048) + EDC/ECC
+        const raw = new Uint8Array(2352);
+        raw.set(out.subarray(unit, unit + 2336), 16);
+        if (edc(raw, 16, 2056) !== rd32(raw, 2072)) throw new Error('Setup disc template has an unexpected layout.');
+        raw.fill(0, 24, 24 + 512);
+        raw.set(scramblePass(pass), 24);
+        le32(raw, 2072, edc(raw, 16, 2056));
+        eccPQ(raw, 86, 24, 2, 86, 2076 - 12);
+        eccPQ(raw, 52, 43, 86, 88, 2248 - 12);
+        out.set(raw.subarray(16, 16 + 2336), unit);
+        return out;
+    }
+
+    async function makeAll(url, key, existingImage) {
+        const err = check(url, key);
+        if (err) throw new Error(err);
+        const now = new Date();
+        const pass = makePass(url, key.toLowerCase());
+        const file = vmuPackage(pass);
+        const image = addToImage(existingImage || await gunzip(EMBED.blankVmuGz), file, now);
+        const cdi = fillSetupDisc(await gunzip(EMBED.setupCdiGz), pass);
+        return { pass, vms: file, vmi: vmi(file.length, now), dci: dci(file, now), image, cdi };
+    }
+    return { makeAll, makePass, vmuPackage, addToImage, fillSetupDisc, check, crc16ccitt };
+})();
+if (typeof module !== 'undefined') module.exports = QRLB;
+</script>
+
+<script>
+(() => {
+    // The leaderboard's address and key come from this file on the same site
+    // (web/leaderboard/qrleaderboard_config.php); players never see them.
+    const CONFIG_URL = 'qrleaderboard_config.php';
+    const $ = (id) => document.getElementById(id);
+    const showErr = (text) => {
+        $('msg').innerHTML = '';
+        const s = document.createElement('span'); s.className = 'err'; s.textContent = text; $('msg').appendChild(s);
+    };
+    let board = null;
+    (async () => {
+        try {
+            const r = await fetch(CONFIG_URL, { cache: 'no-store' });
+            if (!r.ok) throw new Error();
+            const c = await r.json();
+            const err = QRLB.check(String(c.url || ''), String(c.key || ''));
+            if (err) throw new Error(err);
+            board = { url: c.url, key: c.key };
+            $('site').textContent = c.url.replace(/^https?:\/\//, '').replace(/\/[^/]*$/, '');
+            $('make').disabled = false;
+        } catch (e) {
+            showErr(location.protocol === 'file:'
+                ? 'Open this page from the leaderboard\'s website, not from a file.'
+                : 'This leaderboard isn\'t set up for passes yet (' + CONFIG_URL + ' is missing or incomplete).');
+        }
+    })();
+
+    let existing = null, urls = [];
+    const pick = async (f) => {
+        existing = null; $('vmumsg').textContent = '';
+        if (!f) return;
+        const b = new Uint8Array(await f.arrayBuffer());
+        if (b.length !== 131072) { $('vmumsg').innerHTML = '<span class="err">That file isn\'t a 128 KB memory card image.</span>'; return; }
+        existing = b; $('vmumsg').textContent = `Using ${f.name}: the pass will be added to it.`;
+        $('dl-bin').textContent = f.name.replace(/(\.[^.]+)?$/, '_qrleaderboard$1');
+    };
+    const drop = $('drop'), input = $('vmufile');
+    drop.addEventListener('click', () => input.click());
+    input.addEventListener('change', () => pick(input.files[0]));
+    ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', e => pick(e.dataTransfer.files[0]));
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => e.preventDefault());
+
+    const link = (id, data, name) => {
+        const u = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
+        urls.push(u);
+        const a = $(id); a.href = u; a.download = name || a.textContent;
+    };
+    $('make').addEventListener('click', async () => {
+        urls.forEach(u => URL.revokeObjectURL(u)); urls = [];
+        $('out').hidden = true; $('msg').textContent = '';
+        if (!board) return;
+        try {
+            const r = await QRLB.makeAll(board.url, board.key, existing);
+            link('dl-cdi', r.cdi); link('dl-bin', r.image); link('dl-vms', r.vms);
+            link('dl-vmi', r.vmi); link('dl-dci', r.dci);
+            $('out').hidden = false;
+            $('msg').innerHTML = '<span class="ok">Pass made. Download what you need below.</span>';
+        } catch (e) {
+            showErr(e.message);
+        }
+    });
+})();
+</script>
+</body>
+</html>

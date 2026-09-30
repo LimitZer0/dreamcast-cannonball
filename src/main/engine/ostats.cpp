@@ -9,10 +9,12 @@
     See license.txt for more details.
 ***************************************************************************/
 
+#include "frontend/config.hpp"
 #include "engine/ohud.hpp"
 #include "engine/omusic.hpp"
 #include "engine/outils.hpp"
 #include "engine/ostats.hpp"
+#include "frontend/timeattack.hpp"
 #include "engine/otraffic.hpp"
 
 OStats ostats;
@@ -39,6 +41,9 @@ const static uint8_t LAP_MS_60[] =
 
 OStats::OStats(void)
 {
+    score      = 0;
+    score_raw  = 0;
+    score_mult = 1000;
 }
 
 OStats::~OStats(void)
@@ -48,6 +53,8 @@ OStats::~OStats(void)
 void OStats::init(bool ttrial)
 {
     credits = ttrial ? 1 : 0;
+    score_raw  = 0;
+    score_mult = 1000;
     // Choose correct lookup table if timing bugs fixed
     lap_ms = config.engine.fix_timer ? LAP_MS_60 : LAP_MS_64;
 }
@@ -84,6 +91,7 @@ void OStats::do_timers()
         // Each stage has a standard counter that just increments. Do this here.
         stage_counters[cur_stage]++;
         ohud.draw_lap_timer(0x11016C, stage_times[cur_stage], ms_value);
+        timeattack::draw_hud();         // time trial: running total
     }
 
     else if (outrun.cannonball_mode == Outrun::MODE_TTRIAL)
@@ -141,12 +149,91 @@ void OStats::update_score(uint32_t value)
     if (outrun.cannonball_mode == Outrun::MODE_TTRIAL)
         return;
 
-    score = outils::bcd_add(value, score);
+    // Accumulate the unscaled points in decimal, then derive the scaled
+    // BCD score. With score_mult == 1000 this is identical to the original
+    // bcd_add() chain (all score increments are multiples of 10).
+    uint64_t v = 0, m = 1;
+    for (int i = 0; i < 8; i++, value >>= 4, m *= 10)
+        v += (value & 0xF) * m;
+    score_raw += v;
 
-    if (score > 0x99999999)
-        score = 0x99999999;
+    uint64_t scaled = (score_raw * score_mult) / 1000;
+    scaled -= scaled % 10;
+    if (scaled > 99999999)
+        scaled = 99999999;
+
+    uint32_t bcd = 0;
+    for (int i = 0; i < 8; i++, scaled /= 10)
+        bcd |= (uint32_t)(scaled % 10) << (i * 4);
+    score = bcd;
 
     ohud.draw_score_ingame(score);
+}
+
+void OStats::reset_score()
+{
+    score      = 0;
+    score_raw  = 0;
+    score_mult = calc_score_mult(outrun.cannonball_mode == Outrun::MODE_CONT);
+}
+
+// Difficulty multipliers, measured by running the game's own AI through
+// thousands of headless games at every time/traffic setting (US and Japanese
+// tracks) and fitting how much each setting changes the average score.
+// Harder settings multiply the score up, easier settings down, so runs on
+// different settings can share one high score table.
+uint16_t OStats::calc_score_mult(bool continuous_mode)
+{
+    if (!config.engine.score_scaling)
+        return 1000;
+
+    //                                    Easy Normal Hard Hardest
+    static const uint16_t TIME_MULT[]    = { 850, 1000, 1150, 1250 };
+    static const uint16_t TRAFFIC_MULT[] = { 850, 1000, 1100, 1200 };
+    // Continuous mode: traffic is a car count 0-8 (0 = disabled). Normal
+    // traffic averages 5 cars per stage in the original game.
+    static const uint16_t CONT_TRAFFIC_MULT[] = { 400, 700, 750, 850, 900, 1000, 1100, 1200, 1300 };
+    // Traffic disabled: whole-run multiplier for each time setting (finishing
+    // is far easier without traffic, most of all with a generous clock)
+    static const uint16_t NO_TRAFFIC_MULT[] = { 300, 400, 500, 600 };
+    const uint32_t FIX_TIMER_MULT = 1100;
+    const uint32_t AUTO_GEAR_MULT = 900;
+
+    uint32_t mult;
+    if (continuous_mode)
+    {
+        int cars = outrun.custom_traffic;
+        if (cars < 0) cars = 0;
+        if (cars > 8) cars = 8;
+        mult = CONT_TRAFFIC_MULT[cars];
+    }
+    else
+    {
+        const int time = config.engine.freeze_timer ? 1 : (config.engine.dip_time & 3);
+        if (config.engine.disable_traffic)
+            mult = NO_TRAFFIC_MULT[time];
+        else
+            mult = (TIME_MULT[time] * (uint32_t)TRAFFIC_MULT[config.engine.dip_traffic & 3] + 500) / 1000;
+    }
+    // Timing fixes: the countdown clock runs at the true speed (the original
+    // takes 31 frames per second and counts an extra second at zero), so a
+    // run gets about 3% less time. Worth ~10 seconds over a full game.
+    if (config.engine.fix_timer && !config.engine.freeze_timer)
+        mult = (mult * FIX_TIMER_MULT + 500) / 1000;
+
+    // Automatic transmission changes gear for you: x0.90
+    if (config.controls.gear == config.controls.GEAR_AUTO)
+        mult = (mult * AUTO_GEAR_MULT + 500) / 1000;
+
+    return (uint16_t)mult;
+}
+
+bool OStats::assists_enabled()
+{
+    // Also the prototype first stage: a different course, so its scores go
+    // to the MODIFIED tables
+    return config.engine.grippy_tyres || config.engine.offroad || config.engine.bumper ||
+           config.engine.turbo || config.engine.freeze_timer || config.engine.prototype;
 }
 
 // Initialize Next Level

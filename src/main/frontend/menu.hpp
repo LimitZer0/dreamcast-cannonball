@@ -36,6 +36,7 @@ private:
         STATE_MENU,
         STATE_REDEFINE_KEYS,
         STATE_REDEFINE_JOY,
+        STATE_QR,               // SUBMIT SCORES: leaderboard QR code
         STATE_TTRIAL,
         STATE_DIAGNOSTICS,
     };
@@ -112,6 +113,7 @@ private:
     void set_menu_text(std::string s1, std::string s2);
     void redefine_keyboard();
     void redefine_joystick();
+    void tick_submit();
     void display_message(std::string);
     bool check_jap_roms();
     void restart_video();

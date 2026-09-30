@@ -14,6 +14,7 @@
 #include "trackloader.hpp"
 
 #include "engine/oanimseq.hpp"
+#include "frontend/timeattack.hpp"
 #include "engine/obonus.hpp"
 #include "engine/ocrash.hpp"
 #include "engine/oferrari.hpp"
@@ -123,7 +124,7 @@ void OInitEngine::init(int8_t level)
 void OInitEngine::setup_stage1()
 {
     oroad.road_width = 0x1C2 << 16;     // Force display of two roads at start
-    ostats.score = 0;
+    ostats.reset_score();
     ostats.clear_stage_times();
     oferrari.reset_car();               // Reset Car Speed/Rev Values
     outrun.outputs->set_digital(OOutputs::D_EXT_MUTE);
@@ -296,19 +297,32 @@ void OInitEngine::update_engine()
     if (outrun.game_state >= GS_START1 && outrun.game_state <= GS_BONUS)
     {
         // Convert & Blit Car Speed
-        ohud.blit_speed(0x110CB6, car_increment >> 16);
-        ohud.blit_text1(HUD_KPH1);
-        ohud.blit_text1(HUD_KPH2);
+        if (config.engine.speed_mph)
+        {
+            // Dreamcast addition: miles per hour. The km/h label is a 3x2 tile
+            // graphic; replace it with "MPH" on the lower line.
+            ohud.blit_speed(0x110CB6, ((car_increment >> 16) * 621 + 500) / 1000);
+            ohud.blit_text_new(6, 25, "   ", 0x8A);
+            ohud.blit_text_new(6, 26, "MPH", 0x8A);
+        }
+        else
+        {
+            ohud.blit_speed(0x110CB6, car_increment >> 16);
+            ohud.blit_text1(HUD_KPH1);
+            ohud.blit_text1(HUD_KPH2);
+        }
 
         // Blit High/Low Gear
         if ((config.controls.gear == config.controls.GEAR_BUTTON ||
             config.controls.gear == config.controls.GEAR_SEPARATE)
             && !config.smartypi.enabled)
         {
+            // With MPH the gear goes on the line above, clear of "MPH"
+            const uint16_t gy = config.engine.speed_mph ? 25 : 26;
             if (oinputs.gear)
-                ohud.blit_text_new(9, 26, "H", OHud::GREEN);
+                ohud.blit_text_new(9, gy, "H", OHud::GREEN);
             else
-                ohud.blit_text_new(9, 26, "L", OHud::GREY);
+                ohud.blit_text_new(9, gy, "L", OHud::GREY);
         }
 
         if (config.engine.layout_debug)
@@ -994,7 +1008,8 @@ void OInitEngine::test_bonus_mode(bool do_bonus_check)
     if (do_bonus_check && obonus.bonus_control)
     {
         // Do Bonus Text Display
-        if (outrun.cannonball_mode != Outrun::MODE_TTRIAL && obonus.bonus_state < 3)
+        // No bonus seconds in the full-course time trial (no countdown)
+        if (outrun.cannonball_mode != Outrun::MODE_TTRIAL && !timeattack::active() && obonus.bonus_state < 3)
             obonus.do_bonus_text();
 
         // End Seq Animation Stage #0

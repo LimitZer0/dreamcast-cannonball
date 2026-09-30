@@ -30,6 +30,8 @@
 #include "engine/otiles.hpp"
 #include "engine/otraffic.hpp"
 #include "engine/outils.hpp"
+#include "frontend/leaderboard.hpp"
+#include "frontend/timeattack.hpp"
 
 // Internal stage-lookup byte to start attract-mode gameplay at (see
 // STAGE_LOOKUP in frontend/ttrial.cpp); set via the Dreamcast build's
@@ -81,7 +83,11 @@ Outrun::~Outrun()
 void Outrun::init()
 {
     DC_OUTRUN_TRACE("cannonball: Outrun::init enter\n");
-    freeze_timer = cannonball_mode == MODE_TTRIAL ? true : config.engine.freeze_timer;
+    // Time trials have no countdown
+    freeze_timer = cannonball_mode == MODE_TTRIAL || timeattack::active() ? true : config.engine.freeze_timer;
+#ifdef DREAMCAST_DEBUG_RAINBOW
+    freeze_timer = true;    // test builds: let the AI reach the goal
+#endif
     video.enabled = false;
     DC_OUTRUN_TRACE("cannonball: Outrun::init select_course begin\n");
     select_course(config.engine.jap != 0, config.engine.prototype != 0);
@@ -140,15 +146,31 @@ void Outrun::tick(bool tick_frame)
     {
         tick_counter++;
 
+#ifdef DREAMCAST_DEBUG_INCAR
+        // Test builds: alternate normal and in-car views every 20 seconds
+        if (game_state >= GS_START1 && game_state <= GS_INGAME)
+        {
+            const uint8_t want = ((tick_counter / 600) & 1) ? ORoad::VIEW_ORIGINAL : ORoad::VIEW_INCAR;
+            if (oroad.get_view_mode() != want) oroad.set_view_mode(want);
+            if (want == ORoad::VIEW_INCAR && (tick_counter % 600) >= 150) oroad.set_hood(true);
+        }
+#endif
         if (game_state >= GS_START1 && game_state <= GS_INGAME)
         {
             if (input.has_pressed(Input::VIEWPOINT))
             {
-                int mode = oroad.get_view_mode() + 1;
-                if (mode > ORoad::VIEW_INCAR)
-                    mode = ORoad::VIEW_ORIGINAL;
-
-                oroad.set_view_mode(mode);
+#ifdef __DREAMCAST__
+                // In-car, then in-car with the bonnet (zoomed), then back round
+                if (oroad.get_view_mode() == ORoad::VIEW_INCAR && !oroad.hood_view())
+                    oroad.set_hood(true);
+                else
+#endif
+                {
+                    int mode = oroad.get_view_mode() + 1;
+                    if (mode > ORoad::VIEW_INCAR)
+                        mode = ORoad::VIEW_ORIGINAL;
+                    oroad.set_view_mode(mode);
+                }
             }
         }
     }
@@ -260,7 +282,8 @@ void Outrun::jump_table()
             if (!tick_frame)
             {
                 // Check for start button if credits are remaining and set state to Music Selection
-                if (ostats.credits && input.is_pressed_clear(Input::START))
+                // (not on the time trial results screen: START leaves it)
+                if (ostats.credits && !timeattack::active() && input.is_pressed_clear(Input::START))
                     game_state = GS_INIT_MUSIC;
             }
             break;
@@ -330,6 +353,11 @@ void Outrun::jump_table()
 // Source: 0xB15E
 void Outrun::main_switch()
 {
+    // Leaderboard QR code only lives on the high score screens
+    if (game_state != GS_BEST1 && game_state != GS_BEST2 &&
+        game_state != GS_INIT_BEST1 && game_state != GS_INIT_BEST2)
+        leaderboard::reset();
+
     switch (game_state)
     {
         case GS_INIT:  
@@ -350,6 +378,7 @@ void Outrun::main_switch()
             ostats.time_counter = 5;
             ostats.frame_counter = ostats.frame_reset;
             ohiscore.init();
+            leaderboard::reset();
             osoundint.queue_sound(sound::FM_RESET);
             cannonball::audio.clear_wav();
             game_state = GS_BEST1;
@@ -361,6 +390,8 @@ void Outrun::main_switch()
             ohud.draw_insert_coin();
             if (ostats.credits)
                 game_state = GS_INIT_MUSIC;
+            else if (leaderboard::tick_hiscore(ohiscore.table_ready()))
+                break;  // QR code on screen: hold the table
             else if (decrement_timers())
                 game_state = GS_INIT_LOGO;
             break;
@@ -485,6 +516,22 @@ void Outrun::main_switch()
             obonus.bonus_control = OBonus::BONUS_INIT;  // Initialize Bonus Mode Logic
             oroad.road_load_end   |= BIT_0;             // Instruct CPU 1 to load end road section
             ostats.game_completed |= BIT_0;             // Denote game completed
+            // Rainbow car: reach a goal in the arcade game (Enhanced or
+            // Original start) at a score multiplier of x1.00 or more, with
+            // the countdown running and nothing that puts the score on the
+            // MODIFIED tables (grippy tyres, off-road, bumper, turbo, timer off)
+#ifdef DREAMCAST_DEBUG_RAINBOW
+            // Test builds: any finish unlocks (the AI can't finish with traffic)
+            if (!config.engine.rainbow_unlocked && cannonball_mode == MODE_ORIGINAL && !timeattack::active())
+#else
+            if (!config.engine.rainbow_unlocked && cannonball_mode == MODE_ORIGINAL &&
+                !timeattack::active() && !freeze_timer && !OStats::assists_enabled() &&
+                ostats.score_mult >= 1000)
+#endif
+            {
+                config.engine.rainbow_unlocked = true;
+                rainbow_notice = true;
+            }
             obonus.bonus_timer = 3600;                  // Safety Timer Added in Rev. A Roms
             game_state = GS_BONUS;
 
@@ -556,16 +603,21 @@ void Outrun::main_switch()
         case GS_INIT_MAP:
             omap.init();
             ohud.blit_text2(TEXT2_COURSEMAP);
+            if (rainbow_notice)
+                config.save();                  // keep the unlock on the memory card
             game_state = GS_MAP;
             // fall through
 
         case GS_MAP:
+            if (rainbow_notice)
+                ohud.blit_text_centre(25, (tick_counter & 16) ? "NEW COLOR UNLOCKED!" : "                   ", OHud::PINK);
             break;
 
         // ----------------------------------------------------------------------------------------
         // Best OutRunners / Score Entry
         // ----------------------------------------------------------------------------------------
         case GS_INIT_BEST2:
+            rainbow_notice = false;
             oroad.set_view_mode(ORoad::VIEW_ORIGINAL, true);
             // bsr.w   EndGame
             osprites.disable_sprites();
@@ -583,7 +635,11 @@ void Outrun::main_switch()
             oferrari.car_inc_old = 0;
             ostats.time_counter = config.engine.hiscore_timer;
             ostats.frame_counter = ostats.frame_reset;
-            ohiscore.init();
+            if (timeattack::active())
+                timeattack::results_init();     // time trial: results instead of high scores
+            else
+                ohiscore.init();
+            leaderboard::reset();
             osoundint.queue_sound(sound::NEW_COMMAND);
             osoundint.queue_sound(sound::FM_RESET);
             cannonball::audio.clear_wav();
@@ -591,8 +647,22 @@ void Outrun::main_switch()
             // fall through
 
         case GS_BEST2:
+            // Time trial results: back to the menu when the player is done
+            if (timeattack::active())
+            {
+                if (timeattack::results_tick())
+                {
+                    timeattack::end();
+                    cannonball::state = cannonball::STATE_INIT_MENU;
+                }
+                break;
+            }
             ohiscore.tick(); // Do High Score Logic
             ohud.draw_credits();
+
+            // QR code on screen: hold the table
+            if (leaderboard::tick_hiscore(ohiscore.table_ready()))
+                break;
 
             // If countdown has expired
             if (decrement_timers())
@@ -836,6 +906,9 @@ void Outrun::check_freeplay_start()
         if (!ostats.credits && input.has_pressed(Input::START))
         {
             ostats.credits = 1;
+#ifdef __DREAMCAST__
+            osoundint.queue_sound(sound::COIN_IN);  // always free play: sound like a coin went in
+#endif
         }
     }
 #endif

@@ -90,6 +90,15 @@ public:
     bool has_pressed(presses p);
     void reset_axis_config();
     int get_axis_config();
+    // Redefine: remember where every axis rests, so a pedal is recognised as
+    // soon as it moves well away from that (and which way it moves)
+    void capture_axis_rest();
+    void end_axis_capture();
+    bool axis_config_inverted() const { return axis_config_inv; }
+
+    // Accelerator / brake held, from a button or an analog pedal
+    bool accel_held();
+    bool brake_held();
     void set_rumble(bool, float strength = 1.0f);
 
 private:
@@ -112,6 +121,12 @@ private:
 
     // Last axis used
     int axis_last , axis_counter, axis_config;
+    static const int MAX_AXES = 16;
+    int  axis_rest[MAX_AXES];
+    bool axis_rest_valid;
+    bool axis_config_inv;
+    // Analog pedals used as buttons (digital pedal modes)
+    bool trig_acc, trig_brake;
 
     void bind_axis(SDL_GameControllerAxis ax, int offset);
     void bind_button(SDL_GameControllerButton button, int offset);

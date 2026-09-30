@@ -1,0 +1,67 @@
+Unscaled AI results (300 games per setting, grippy 200):
+tracks time     traffic  grip    n      mean    median       p90 avgstg  done%
+US     Easy     Off         0  296  14667541  10979740  26588860   5.00   57.4
+US     Easy     Off         1  198  35262313  35937760  42689270   5.00  100.0
+US     Easy     Easy        0  299   4836422   4691090   6127650   3.17    0.0
+US     Easy     Easy        1  199   5716323   6031720   6452310   3.70    1.5
+US     Easy     Normal      0  296   4328046   4638975   5008050   2.79    0.0
+US     Easy     Normal      1  200   4810083   4827610   6104540   3.04    0.0
+US     Easy     Hard        0  295   4082375   4521260   5008680   2.57    0.0
+US     Easy     Hard        1  197   4612034   4885720   5186770   2.85    0.0
+US     Easy     Hardest     0  296   3872487   3422260   5094680   2.42    0.0
+US     Easy     Hardest     1  199   4247022   4688220   5172850   2.64    0.0
+US     Normal   Off         0  299   9838692   7012780  18588860   4.73   38.1
+US     Normal   Off         1  197  27182907  28572400  34689270   5.00  100.0
+US     Normal   Easy        0  297   4222510   4533600   4764690   2.79    0.0
+US     Normal   Easy        1  199   4585632   4706600   4891350   2.94    0.0
+US     Normal   Normal      0  297   3647172   3278770   4807360   2.35    0.0
+US     Normal   Normal      1  196   4184981   4601940   4967910   2.64    0.0
+US     Normal   Hard        0  296   3459678   3291335   4813000   2.20    0.0
+US     Normal   Hard        1  197   3899109   3537720   4989290   2.44    0.0
+US     Normal   Hardest     0  298   3210351   3273330   4772960   2.03    0.0
+US     Normal   Hardest     1  199   3391467   3354740   4953550   2.14    0.0
+US     Hard     Off         0  295   6857775   5917260  13588860   4.05   14.9
+US     Hard     Off         1  198  21533794  20015560  27896210   5.00  100.0
+US     Hard     Easy        0  295   3916062   4443570   4737430   2.59    0.0
+US     Hard     Easy        1  199   4393508   4682740   4870310   2.81    0.0
+US     Hard     Normal      0  296   3294357   3219335   4730470   2.12    0.0
+US     Hard     Normal      1  198   3690190   3286745   4934800   2.36    0.0
+US     Hard     Hard        0  296   2939950   3167415   4386790   1.86    0.0
+US     Hard     Hard        1  198   3221315   3283955   4853340   2.01    0.0
+US     Hard     Hardest     0  297   2734406   3085790   3513250   1.70    0.0
+US     Hard     Hardest     1  199   2797924   3190660   3504820   1.72    0.0
+US     Hardest  Off         0  295   5860957   4519450  11479130   3.68   11.2
+US     Hardest  Off         1  198  19316427  20572400  25896210   5.00  100.0
+US     Hardest  Easy        0  297   3630972   4287260   4719230   2.40    0.0
+US     Hardest  Easy        1  197   4079533   4604850   4846280   2.64    0.0
+US     Hardest  Normal      0  296   2941253   3122185   4465270   1.90    0.0
+US     Hardest  Normal      1  197   3358223   3253970   4799030   2.15    0.0
+US     Hardest  Hard        0  296   2610675   3025580   3426460   1.66    0.0
+US     Hardest  Hard        1  199   2935453   3254470   3485010   1.82    0.0
+US     Hardest  Hardest     0  299   2486074   2904570   3468980   1.56    0.0
+US     Hardest  Hardest     1  200   2687499   3183080   3477540   1.67    0.0
+JP     Easy     Off         0  298  13114192   7126730  29411590   4.85   39.3
+JP     Easy     Easy        0  298   4651389   4626125   6009180   3.06    0.0
+JP     Easy     Normal      0  296   4178304   4606050   4969810   2.69    0.0
+JP     Easy     Hard        0  295   3901301   3432490   5001520   2.46    0.0
+JP     Easy     Hardest     0  299   3680419   3342850   5023610   2.30    0.0
+JP     Normal   Off         0  295   7132887   5601690  19411590   4.12   10.5
+JP     Normal   Easy        0  295   4026552   4438910   4769770   2.65    0.0
+JP     Normal   Normal      0  297   3631680   3259770   4808200   2.34    0.0
+JP     Normal   Hard        0  297   3382979   3247040   4759550   2.14    0.0
+JP     Normal   Hardest     0  297   3093162   3217620   3579230   1.95    0.0
+JP     Hard     Off         0  296   6524670   6040640  15411590   3.77   12.8
+JP     Hard     Easy        0  297   3684126   4203330   4724370   2.46    0.0
+JP     Hard     Normal      0  297   3048952   3151260   4631140   1.96    0.0
+JP     Hard     Hard        0  296   2885880   3132850   3488820   1.81    0.0
+JP     Hard     Hardest     0  298   2715145   3105195   3447220   1.70    0.0
+JP     Hardest  Off         0  295   5144209   4345800   6035300   3.48    0.0
+JP     Hardest  Easy        0  296   3276875   3161005   4638010   2.17    0.0
+JP     Hardest  Normal      0  295   2775239   3089370   3381150   1.78    0.0
+JP     Hardest  Hard        0  296   2692672   3094790   3429600   1.71    0.0
+JP     Hardest  Hardest     0  297   2384055   1777480   3385310   1.51    0.0
+
+Fitted multipliers:
+US         time x: 0.85 1.00 1.13 1.26 | traffic x: 0.85 1.00 1.09 1.16 | traffic-off x (per time setting): 0.30 0.37 0.48 0.50 | max model err 5.4%
+JP         time x: 0.86 1.00 1.15 1.27 | traffic x: 0.87 1.00 1.06 1.15 | traffic-off x (per time setting): 0.32 0.51 0.47 0.54 | max model err 2.8%
+US grippy  time x: 0.83 1.00 1.15 1.24 | traffic x: 0.85 1.00 1.10 1.23 | traffic-off x (per time setting): 0.14 0.15 0.17 0.17 | max model err 5.7%

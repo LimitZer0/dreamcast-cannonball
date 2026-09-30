@@ -9,8 +9,12 @@
 #pragma once
 
 #ifdef __DREAMCAST__
-bool vmu_load_scores();
-bool vmu_save_scores();
+// High score tables. list = (japanese tracks ? 1 : 0)
+//                        | (continuous mode  ? 2 : 0)
+//                        | (assists on       ? 4 : 0)
+static const int VMU_SCORE_LISTS = 8;
+bool vmu_load_scores(int list);
+bool vmu_save_scores(int list);
 bool vmu_clear_scores();
 bool vmu_load_config();
 bool vmu_save_config();

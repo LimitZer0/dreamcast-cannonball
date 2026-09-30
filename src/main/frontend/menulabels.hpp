@@ -12,6 +12,7 @@ const static char* ENTRY_PLAYGAME = "PLAY GAME";
 const static char* ENTRY_GAMEMODES = "GAME MODES";
 const static char* ENTRY_SETTINGS = "SETTINGS";
 const static char* ENTRY_ABOUT = "ABOUT";
+const static char* ENTRY_SUBMIT = "SUBMIT SCORES";
 const static char* ENTRY_EXIT = "EXIT";
 
 // Main Menu (cabinet)
@@ -23,7 +24,8 @@ const static char* ENTRY_EXSETTINGS = "EXTRA SETTINGS";
 const static char* ENTRY_ENHANCED = "SET ENHANCED MODE";
 const static char* ENTRY_ORIGINAL = "SET ORIGINAL MODE";
 const static char* ENTRY_CONT = "CONTINUOUS MODE";
-const static char* ENTRY_TIMETRIAL = "TIME TRIAL MODE";
+const static char* ENTRY_TIMETRIAL = "STAGE TRIAL";      // one stage, laps (CannonBall's time trial)
+const static char* ENTRY_TIMEATTACK = "TIME TRIAL";      // Dreamcast: full course, no traffic or countdown
 
 // Time Trial Menu
 const static char* ENTRY_START = "START TIME TRIAL";
@@ -38,6 +40,7 @@ const static char* ENTRY_SOUND = "SOUND";
 const static char* ENTRY_CONTROLS = "CONTROLS";
 const static char* ENTRY_ENGINE = "GAME ENGINE";
 const static char* ENTRY_SCORES = "CLEAR HISCORES";
+const static char* ENTRY_RESETCFG = "RESET SETTINGS";
 const static char* ENTRY_SAVE = "SAVE AND RETURN";
 const static char* ENTRY_ENHANCE = "ENHANCEMENTS";
 
@@ -58,9 +61,21 @@ const static char* ENTRY_WIDESCREEN = "WIDESCREEN ";
 const static char* ENTRY_HIRES = "HIRES ";
 const static char* ENTRY_SCALE = "WINDOW SCALE ";
 const static char* ENTRY_SCANLINES = "SCANLINES ";
+const static char* ENTRY_DISPLAY = "CURRENT DISPLAY: ";  // Dreamcast: 2X / original
+const static char* ENTRY_FPSCOUNT = "FPS COUNTER ";
+const static char* ENTRY_CRT = "CRT FRAME ";            // Dreamcast: off / corners / corners + shade
+const static char* ENTRY_VMUANIM = "VMU ANIMATION ";     // Dreamcast: on / off
+const static char* ENTRY_BADGE = "EMBLEM ";              // Dreamcast car setup: mirrored (original) / fixed
+const static char* ENTRY_SPRITEMODE = "SPRITES ";      // test builds: cut-out / blended
+const static char* ENTRY_RENDERMODE = "RENDER ";        // test builds: native 320x224 / direct 640x448
+const static char* ENTRY_MUSICSRC = "MUSIC SOURCE "; // Dreamcast: original / custom
 
 // Sound Menu
+#ifdef __DREAMCAST__
+const static char* ENTRY_MUTE = "SOUND FX ";   // effects only; music has MUSIC SOURCE
+#else
 const static char* ENTRY_MUTE = "SOUND ";
+#endif
 // Fixed: removed unused ENTRY_BGM and ENTRY_SFX labels
 // const static char* ENTRY_BGM = "BGM VOL ";
 // const static char* ENTRY_SFX = "SFX VOL ";
@@ -83,8 +98,10 @@ const static char* ENTRY_REDEFJOY = "REDEFINE GAMEPAD";
 
 // Game Engine Menu
 const static char* ENTRY_TRACKS = "TRACKS ";
+const static char* ENTRY_SPEEDUNIT = "SPEED ";
 const static char* ENTRY_TIME = "TIME ";
 const static char* ENTRY_TRAFFIC = "TRAFFIC ";
+const static char* ENTRY_SCOREMULT = "SCORE ";
 const static char* ENTRY_SUB_ENHANCEMENTS = "ENHANCEMENTS";
 const static char* ENTRY_SUB_HANDLING = "CAR SETUP";
 
@@ -100,7 +117,7 @@ const static char* ENTRY_BUMPER  = "STRONG BUMPER ";
 const static char* ENTRY_TURBO   = "FASTER CAR ";
 const static char* ENTRY_COLOR   = "COLOR ";
 
-const static char* COLOR_LABELS[5] = { "RED", "BLUE", "YELLOW", "GREEN", "CYAN" };
+const static char* COLOR_LABELS[9] = { "RED", "BLUE", "YELLOW", "GREEN", "CYAN", "BLACK", "WHITE", "PINK", "RAINBOW" };
 
 // Music Test Menu
 const static char* ENTRY_MUSIC1 = "PLAY TRACK";
