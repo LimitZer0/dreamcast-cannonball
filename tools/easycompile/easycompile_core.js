@@ -39,6 +39,7 @@ const EasyCore = (() => {
         ['epr-10327.76', 0x10000, 0xda99d855, 1], ['epr-10329.58', 0x10000, 0xfe0fa5e2, 1],
         ['epr-10328.75', 0x10000, 0x3c0e9a7f, 1], ['epr-10330.57', 0x10000, 0x59786e99, 1],
         ['opr-10188.71f', 0x08000, 0x37598616, 2],
+        ['opr-10188.71f', 0x08000, 0xc2de09b2, 2],     // the other repaired version the game accepts
     ];
 
     // --- zip reading (stored or deflate; zips inside zips too) ----------------
