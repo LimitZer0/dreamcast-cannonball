@@ -1,6 +1,6 @@
 **Dreamcast Cannonball Outrun**
 
-This is a very console (Dreamcast) focused build on Cannonball Outrun Engine.
+This is a very console (Dreamcast) focused build of Cannonball Outrun Engine.
 
 - It runs at a very solid 60FPS. Usually only dips when starting a new game, saving, etc. 
 - Competitive Scoring with multiple leaderboards - Easy settings lower the score, harder settings increase the score
