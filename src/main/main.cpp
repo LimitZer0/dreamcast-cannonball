@@ -414,6 +414,71 @@ static bool write_wav(const char* fn, const std::vector<int16_t>& smp, int rate,
     return true;
 }
 
+// The YM2151 runs at clock / 64 = 62.5 kHz on the real board. Generating it
+// directly at the recording rate makes its FM harmonics alias (a harsh,
+// gritty sound on bright effects such as the coin chime), so it is rendered
+// at its own rate and resampled with a windowed-sinc low-pass filter.
+// (SegaPCM stays at 32 kHz: its sample stepping assumes that rate.)
+struct YMResampler
+{
+    static const int HALF = 32;                     // taps each side
+    int num, den;                                   // input frames per output frame = num / den
+    std::vector<float> taps;                        // [phase][2*HALF]
+    std::vector<int16_t> in;                        // stereo input not yet consumed
+    long in_base = 0;                               // input frame index of in[0]
+    long out_next = 0;                              // next output frame
+
+    void init(int in_rate, int out_rate, double cutoff_hz)
+    {
+        int a = in_rate, b = out_rate; while (b) { int t = a % b; a = b; b = t; }
+        num = in_rate / a; den = out_rate / a;
+        taps.assign((size_t)den * 2 * HALF, 0.0f);
+        const double fc = cutoff_hz / in_rate;      // cycles per input sample
+        for (int ph = 0; ph < den; ph++)
+        {
+            const double frac = (double)ph / den;   // output lies frac past input frame
+            double sum = 0;
+            for (int k = 0; k < 2 * HALF; k++)
+            {
+                const double x = (k - (HALF - 1)) - frac;          // distance in input frames
+                const double sinc = x == 0 ? 2 * fc : sin(2 * M_PI * fc * x) / (M_PI * x);
+                const double w = 0.42 + 0.5 * cos(M_PI * x / HALF) + 0.08 * cos(2 * M_PI * x / HALF); // Blackman
+                const double v = fabs(x) < HALF ? sinc * w : 0;
+                taps[(size_t)ph * 2 * HALF + k] = (float)v; sum += v;
+            }
+            for (int k = 0; k < 2 * HALF; k++) taps[(size_t)ph * 2 * HALF + k] /= (float)sum;
+        }
+    }
+    void push(const int16_t* s, int frames) { in.insert(in.end(), s, s + frames * 2); }
+    // Next output frame, if enough input has arrived
+    bool pop(int32_t& l, int32_t& r)
+    {
+        const long pos = out_next * num;            // in units of 1/den input frames
+        const long base = pos / den;
+        const int ph = (int)(pos % den);
+        const long first = base - (HALF - 1);
+        if (base + HALF >= in_base + (long)in.size() / 2) return false;
+        const float* t = &taps[(size_t)ph * 2 * HALF];
+        float accl = 0, accr = 0;
+        for (int k = 0; k < 2 * HALF; k++)
+        {
+            const long f = first + k - in_base;
+            if (f < 0) continue;                    // before the start: silence
+            accl += t[k] * in[f * 2]; accr += t[k] * in[f * 2 + 1];
+        }
+        l = (int32_t)lrintf(accl); r = (int32_t)lrintf(accr);
+        out_next++;
+        // drop input no longer needed
+        const long keep_from = (out_next * num) / den - HALF;
+        if (keep_from - in_base > 4096)
+        {
+            in.erase(in.begin(), in.begin() + (keep_from - in_base) * 2);
+            in_base = keep_from;
+        }
+        return true;
+    }
+};
+
 static int render_audio_main()
 {
     const char* mode = getenv("CB_RENDER");
@@ -433,9 +498,23 @@ static int render_audio_main()
     outrun.game_state = GS_MUSIC;   // (music is suppressed in attract mode)
     osoundint.init();
     osoundint.has_booted = true;
+    const int ym_rate = getenv("CB_YMRATE") ? atoi(getenv("CB_YMRATE")) : 62500;  // 0 = same as rate
+    const bool resample = ym_rate > 0 && ym_rate != rate;
+    YMResampler rs;
+    if (resample)
+    {
+        if (ym_rate % 125) { fprintf(stderr, "CB_YMRATE must be a multiple of 125\n"); return 1; }
+        osoundint.ym->init(ym_rate, 125);
+        rs.init(ym_rate, rate, rate * 0.42);    // pass up to 13.4 kHz at 32 kHz
+    }
 
     // Let the sound program settle, then start the music / effect
-    for (int i = 0; i < 25; i++) { osoundint.tick(); osoundint.pcm->stream_update(); osoundint.ym->stream_update(); }
+    for (int i = 0; i < 25; i++)
+    {
+        osoundint.tick(); osoundint.pcm->stream_update(); osoundint.ym->stream_update();
+        if (resample) { rs.push(osoundint.ym->get_buffer(), osoundint.ym->buffer_size / 2); int32_t l, r; while (rs.pop(l, r)) {} }
+    }
+    if (resample) rs.out_next = 25L * spt;     // FM output lines up with the PCM from here
     if (engine)
     {
         osoundint.engine_data[sound::ENGINE_PITCH_H] = (cmd >> 8) & 0xFF;
@@ -446,6 +525,8 @@ static int render_audio_main()
         osoundint.queue_sound((uint8_t)cmd);
 
     std::vector<int16_t> smp;
+    std::vector<int16_t> pcmq;      // PCM waiting for the (slightly later) resampled FM
+    size_t pcmq_pos = 0;
     std::map<uint32_t, long> seen;
     long loop_start = -1, loop_end = -1, quiet = 0, last_loud = 0;
     const long max_ticks = 125L * 60 * 10;    // 10 minutes
@@ -459,12 +540,25 @@ static int render_audio_main()
         const int16_t* y = osoundint.ym->get_buffer();
         const int n = osoundint.pcm->buffer_size;
         int peak = 0;
-        for (int i = 0; i < n; i++)
+        auto mix = [&](int32_t m)
         {
-            int32_t m = p[i] + y[i];            // same mix as Audio::tick()
             if (m > INT16_MAX) m = INT16_MAX; else if (m < INT16_MIN) m = INT16_MIN;
             smp.push_back((int16_t)m);
             if (abs(m) > peak) peak = abs(m);
+        };
+        if (!resample)
+            for (int i = 0; i < n; i++) mix(p[i] + y[i]);   // same mix as Audio::tick()
+        else
+        {
+            pcmq.insert(pcmq.end(), p, p + n);
+            rs.push(y, osoundint.ym->buffer_size / 2);
+            int32_t l, r;
+            while (pcmq_pos + 1 < pcmq.size() && rs.pop(l, r))
+            {
+                mix(pcmq[pcmq_pos] + l); mix(pcmq[pcmq_pos + 1] + r);
+                pcmq_pos += 2;
+            }
+            if (pcmq_pos > 65536) { pcmq.erase(pcmq.begin(), pcmq.begin() + pcmq_pos); pcmq_pos = 0; }
         }
 
         if (engine)
@@ -527,8 +621,25 @@ static int render_audio_main()
         }
     }
 
+    // The resampled FM runs a few frames behind: one more tick fills the gap
+    if (resample)
+    {
+        osoundint.tick(); osoundint.pcm->stream_update(); osoundint.ym->stream_update();
+        const int16_t* p = osoundint.pcm->get_buffer();
+        pcmq.insert(pcmq.end(), p, p + osoundint.pcm->buffer_size);
+        rs.push(osoundint.ym->get_buffer(), osoundint.ym->buffer_size / 2);
+        int32_t l, r;
+        while (pcmq_pos + 1 < pcmq.size() && rs.pop(l, r))
+        {
+            for (int32_t m : { (int32_t)pcmq[pcmq_pos] + l, (int32_t)pcmq[pcmq_pos + 1] + r })
+                smp.push_back((int16_t)(m > INT16_MAX ? INT16_MAX : m < INT16_MIN ? INT16_MIN : m));
+            pcmq_pos += 2;
+        }
+    }
+
     if (!music && !engine)
         smp.resize((size_t)(last_loud + 13) * spt * 2); // keep 0.1s after the last sound
+
 
     if (music && loop_start < 0) { fprintf(stderr, "no loop found\n"); return 2; }
 

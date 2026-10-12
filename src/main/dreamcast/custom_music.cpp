@@ -41,6 +41,7 @@ namespace custommusic
         long orig_loop[TRACKS];         // loop start in sample frames, -1 = plays once
         std::string fx_files[FX_COUNT];
         sfxhnd_t fx[FX_COUNT];
+        unsigned int fx_last[FX_COUNT];  // index of the effect's last sample (0 = unknown)
         bool fx_loaded   = false;
         bool audio_up    = false;       // the AICA/sound system is running
 
@@ -113,16 +114,52 @@ namespace custommusic
             }
         }
 
+        // Sample frames in a 16-bit PCM WAV (header only), 0 if not that format
+        unsigned int wav_frames(const char* path)
+        {
+            file_t f = fs_open(path, O_RDONLY);
+            if (f == FILEHND_INVALID) return 0;
+            uint8_t h[12], c[8], fmt[16];
+            unsigned int frames = 0, channels = 0, bits = 0;
+            if (fs_read(f, h, 12) == 12 && !memcmp(h, "RIFF", 4) && !memcmp(h + 8, "WAVE", 4))
+            {
+                while (fs_read(f, c, 8) == 8)
+                {
+                    const uint32_t sz = c[4] | (c[5] << 8) | (c[6] << 16) | ((uint32_t)c[7] << 24);
+                    if (!memcmp(c, "fmt ", 4) && sz >= 16 && fs_read(f, fmt, 16) == 16)
+                    {
+                        channels = fmt[2] | (fmt[3] << 8);
+                        bits = fmt[14] | (fmt[15] << 8);
+                        fs_seek(f, sz - 16 + (sz & 1), SEEK_CUR);
+                    }
+                    else if (!memcmp(c, "data", 4))
+                    {
+                        if (bits == 16 && channels) frames = sz / (2 * channels);
+                        break;
+                    }
+                    else
+                        fs_seek(f, sz + (sz & 1), SEEK_CUR);
+                }
+            }
+            fs_close(f);
+            return frames;
+        }
+
         void load_fx()
         {
             if (fx_loaded) return;
             for (int i = 0; i < FX_COUNT; i++)
             {
                 fx[i] = SFXHND_INVALID;
+                fx_last[i] = 0;
                 if (!fx_files[i].empty())
+                {
                     fx[i] = snd_sfx_load(fx_files[i].c_str());
+                    const unsigned int n = wav_frames(fx_files[i].c_str());
+                    if (n > 1 && n <= 65535) fx_last[i] = n - 1;
+                }
                 if (!fx_files[i].empty())
-                    dbglog(DBG_INFO, "cannonball: FM effect %s %s\n", fx_files[i].c_str(), fx[i] != SFXHND_INVALID ? "loaded" : "FAILED");
+                    dbglog(DBG_INFO, "cannonball: FM effect %s %s (end %u)\n", fx_files[i].c_str(), fx[i] != SFXHND_INVALID ? "loaded" : "FAILED", fx_last[i]);
             }
             fx_loaded = true;
         }
@@ -252,7 +289,17 @@ namespace custommusic
         {
             if (config.sound.enabled)
             {
-                const int ch = snd_sfx_play(fx[f], VOLUME_FX, 128);
+                // End on the last sample. KallistiOS's default end position is one
+                // past it, and a real AICA plays that extra (garbage) sample:
+                // a pop at the end of every effect, which Flycast doesn't reproduce.
+                // (sound correction by ateam from dreamcast-talk.com)
+                sfx_play_data_t d = {};
+                d.chn = -1;
+                d.idx = fx[f];
+                d.vol = VOLUME_FX;
+                d.pan = 128;
+                d.loopend = fx_last[f];             // 0 = KallistiOS default
+                const int ch = snd_sfx_play_ex(&d);
 #ifdef DREAMCAST_DEBUG_MUSIC
                 dbglog(DBG_INFO, "cannonball: FM effect %02X from recording (channel %d)\n", cmd, ch);
 #else
