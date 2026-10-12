@@ -29,7 +29,8 @@ Have fun!
 
 <img width="640" height="500" alt="image" src="https://github.com/user-attachments/assets/51111fe5-790e-453e-845c-76bfd358c4d0" />
 
-
+10/12 Update
+- Audio popping on some sounds - Fix by ateam.
 
 
 
